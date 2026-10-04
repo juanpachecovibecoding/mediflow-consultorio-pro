@@ -1,0 +1,128 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// 1. Configuración de la clínica (Single-Tenant / White-Label)
+model ClinicConfig {
+  id             String   @id @default("clinic_default")
+  clinicName     String   @default("Consultorio Odontológico Dr. Juan Pérez")
+  doctorName     String   @default("Dr. Juan Pérez")
+  specialty      String   @default("Odontología General e Implantes")
+  phone          String   @default("+54 11 4455-6677")
+  whatsappNumber String   @default("+54 9 11 5566-7788")
+  address        String   @default("Av. Corrientes 1234, Piso 2")
+  city           String   @default("Buenos Aires")
+  workingHours   String   @default("Lunes a Viernes de 09:00 a 19:00 hs")
+  logoUrl        String?
+  insurances     String   @default("OSDE, Swiss Medical, Galeno, Particular")
+  
+  // Configuración de Recordatorios Inteligentes Antispam
+  remindersActive    Boolean @default(true)
+  remindersStartHour String  @default("09:00") // Hora a la que inicia el envío diario
+  minRandomDelayMin  Int     @default(10)      // Delay mínimo en minutos entre mensajes
+  maxRandomDelayMin  Int     @default(18)      // Delay máximo en minutos entre mensajes
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// 2. Configuración Técnica del Sistema (SuperAdmin)
+model SystemConfig {
+  id              String   @id @default("system_default")
+  geminiApiKey    String   @default("")
+  geminiModel     String   @default("gemini-3.8-flash")
+  superAdminPin   String   @default("superadmin123")
+  botActive       Boolean  @default(true)
+  systemPrompt    String   @default("Eres el asistente virtual por WhatsApp de la clínica. Sé cálido, profesional y conciso. Ayuda a resolver dudas. Si el paciente desea agendar un turno o consultar su turno, pídele amablemente su número de DNI para verificarlo en el sistema.")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// 3. Catálogo de Tratamientos / Servicios
+model Service {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  durationMin Int      @default(30)
+  priceRef    Float?
+  active      Boolean  @default(true)
+
+  appointments Appointment[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+// 4. Pacientes (Identificador único fundamental: DNI)
+model Patient {
+  id              String   @id @default(cuid())
+  dni             String   @unique
+  name            String
+  phone           String   // Número de WhatsApp explícito para notificaciones
+  whatsappJid     String?  // JID de Baileys para respuesta en chat
+  healthInsurance String?
+  email           String?
+
+  appointments Appointment[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+// 5. Turnos / Citas
+model Appointment {
+  id                 String   @id @default(cuid())
+  patientId          String
+  patient            Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  serviceId          String?
+  service            Service? @relation(fields: [serviceId], references: [id])
+  date               String   // Formato YYYY-MM-DD
+  time               String   // Formato HH:mm
+  status             String   @default("SCHEDULED") // SCHEDULED, CONFIRMED, CANCELLED, COMPLETED, NO_SHOW
+  
+  // Módulo de Recordatorio 24h
+  reminderStatus     String   @default("PENDING") // PENDING, QUEUED, SENT, FAILED
+  reminderSentAt     DateTime?
+  reminderResponse   String?  // CONFIRMED, CANCELLED
+  
+  notes              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([date, time])
+  @@index([patientId])
+}
+
+// 6. Magic Links / Tokens de Reserva de Un Solo Uso
+model BookingToken {
+  id           String   @id // UUID v4 o nanoid
+  dni          String
+  whatsappJid  String?  // JID origen de la conversación
+  isNewPatient Boolean  @default(false)
+  expiresAt    DateTime
+  used         Boolean  @default(false)
+  usedAt       DateTime?
+  createdAt    DateTime @default(now())
+
+  @@index([id, used])
+}
+
+// 7. Bloqueos de Agenda (Vacaciones, Feriados, Bloqueos de horario)
+model ScheduleBlock {
+  id        String   @id @default(cuid())
+  date      String   // Formato YYYY-MM-DD
+  time      String?  // Si es null, bloquea todo el día. Si tiene valor (ej: "14:00"), bloquea ese slot
+  reason    String?  // "Vacaciones", "Congreso", etc.
+  createdAt DateTime @default(now())
+}
+
+// 8. Persistencia de Sesión de Baileys / WhatsApp (Sobrevive a reinicios en Render)
+model WhatsAppSession {
+  id        String   @id
+  data      String   // JSON serializado con credenciales y claves criptográficas
+  updatedAt DateTime @updatedAt
+}
