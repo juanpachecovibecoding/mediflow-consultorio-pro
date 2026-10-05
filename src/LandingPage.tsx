@@ -10,7 +10,9 @@ import {
   CalendarCheck, 
   CheckCircle2, 
   ArrowRight,
-  Stethoscope
+  Stethoscope,
+  Navigation,
+  ExternalLink
 } from 'lucide-react';
 
 export default function LandingPage() {
@@ -44,6 +46,10 @@ export default function LandingPage() {
 
   const cleanWaNumber = (clinic.whatsappNumber || '').replace(/\D/g, '');
   const waUrl = `https://wa.me/${cleanWaNumber}?text=Hola!%20Quería%20consultar%20para%20agendar%20un%20turno.`;
+
+  const fullAddressQuery = encodeURIComponent(`${clinic.address || ''}, ${clinic.city || ''}`);
+  const googleMapsEmbedUrl = `https://maps.google.com/maps?q=${fullAddressQuery}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
+  const googleMapsExternalUrl = `https://www.google.com/maps/search/?api=1&query=${fullAddressQuery}`;
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-teal-500 selection:text-white">
@@ -225,45 +231,81 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 6. UBICACIÓN Y CONTACTO */}
-      <section className="py-20 px-4 sm:px-8 max-w-6xl mx-auto">
-        <div className="bg-slate-900 text-white rounded-[2.5rem] p-8 md:p-14 shadow-2xl overflow-hidden grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
-          <div className="space-y-6">
+      {/* 6. UBICACIÓN Y CONTACTO CON GOOGLE MAPS DINÁMICO */}
+      <section id="ubicacion" className="py-20 px-4 sm:px-8 max-w-6xl mx-auto">
+        <div className="bg-slate-900 text-white rounded-[2.5rem] p-8 md:p-12 shadow-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-12 gap-8 items-center border border-slate-800">
+          
+          <div className="lg:col-span-5 space-y-6">
             <span className="px-3 py-1 rounded-full bg-teal-500/20 text-teal-300 text-xs font-bold uppercase tracking-wider">
               Encontranos
             </span>
-            <h3 className="text-3xl font-black">Atención en el corazón de la ciudad</h3>
+            <h3 className="text-3xl font-black tracking-tight">Atención en {clinic.city || 'el corazón de la ciudad'}</h3>
             <p className="text-slate-300 text-sm leading-relaxed">
-              Instalaciones confortables pensadas para que tu visita sea tranquila, puntual y agradable.
+              Instalaciones confortables y de fácil acceso, diseñadas para que tu visita sea puntual, cómoda y segura.
             </p>
 
             <div className="space-y-4 pt-2">
-              <div className="flex items-center gap-3 text-sm">
-                <MapPin className="w-5 h-5 text-teal-400" />
-                <span>{clinic.address}, {clinic.city}</span>
+              <div className="flex items-start gap-3 text-sm">
+                <MapPin className="w-5 h-5 text-teal-400 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold text-white block">Dirección</span>
+                  <span className="text-slate-300">{clinic.address}, {clinic.city}</span>
+                </div>
               </div>
-              <div className="flex items-center gap-3 text-sm">
-                <Clock className="w-5 h-5 text-teal-400" />
-                <span>{clinic.workingHours}</span>
+              <div className="flex items-start gap-3 text-sm">
+                <Clock className="w-5 h-5 text-teal-400 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold text-white block">Horarios de Atención</span>
+                  <span className="text-slate-300">{clinic.workingHours}</span>
+                </div>
               </div>
-              <div className="flex items-center gap-3 text-sm">
-                <Phone className="w-5 h-5 text-teal-400" />
-                <span>{clinic.phone}</span>
+              <div className="flex items-start gap-3 text-sm">
+                <Phone className="w-5 h-5 text-teal-400 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold text-white block">Teléfono de Contacto</span>
+                  <span className="text-slate-300">{clinic.phone}</span>
+                </div>
               </div>
+            </div>
+
+            <div className="pt-2 flex flex-col sm:flex-row gap-3">
+              <a 
+                href={googleMapsExternalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 px-5 py-3.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs transition border border-slate-700"
+              >
+                <Navigation className="w-4 h-4 text-teal-400" />
+                Cómo llegar (Google Maps)
+                <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+              </a>
+
+              <a 
+                href={waUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-xs transition shadow-lg shadow-emerald-500/20"
+              >
+                <MessageCircle className="w-4 h-4 fill-current" />
+                WhatsApp
+              </a>
             </div>
           </div>
 
-          <div className="text-center md:text-right">
-            <a 
-              href={waUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-3 px-8 py-5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-2xl shadow-xl transition-all hover:scale-105 text-base"
-            >
-              <MessageCircle className="w-5 h-5 fill-current" />
-              Escribir a WhatsApp Ahora
-            </a>
+          {/* MAPA DE GOOGLE INTERACTIVO CON UBICACIÓN DINÁMICA */}
+          <div className="lg:col-span-7 h-[360px] sm:h-[420px] rounded-3xl overflow-hidden border border-slate-700 shadow-xl bg-slate-800 relative">
+            <iframe
+              title={`Mapa de ubicación de ${clinic.clinicName}`}
+              width="100%"
+              height="100%"
+              style={{ border: 0, filter: 'contrast(1.05)' }}
+              loading="lazy"
+              allowFullScreen
+              referrerPolicy="no-referrer-when-downgrade"
+              src={googleMapsEmbedUrl}
+            />
           </div>
+
         </div>
       </section>
 
