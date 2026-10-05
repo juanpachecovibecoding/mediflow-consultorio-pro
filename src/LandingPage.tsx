@@ -60,7 +60,9 @@ export default function LandingPage() {
             </span>
           </div>
           <div className="flex items-center gap-4 font-medium text-slate-300">
-            <a href="/panel" className="text-slate-400 hover:text-white transition">Acceso Profesional</a>
+            <span className="flex items-center gap-1.5 text-slate-300">
+              <Phone className="w-3.5 h-3.5 text-teal-400" /> {clinic.phone}
+            </span>
           </div>
         </div>
       </div>
