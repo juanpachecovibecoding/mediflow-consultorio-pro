@@ -35,7 +35,9 @@ import {
   AlertCircle,
   Search,
   Mail,
-  User
+  User,
+  RefreshCw,
+  PowerOff
 } from 'lucide-react';
 
 export default function AdminPanel() {
@@ -226,13 +228,46 @@ export default function AdminPanel() {
     setActiveTab('agenda');
   };
 
+  const [waLoading, setWaLoading] = useState(false);
+
   const startWhatsApp = async () => {
+    setWaLoading(true);
     try {
       const res = await fetch('/api/admin/whatsapp/start', { method: 'POST' });
       const data = await res.json();
       setWaStatus(data.status);
       setQrCode(data.qr);
-    } catch (e) {}
+    } catch (e) {} finally {
+      setWaLoading(false);
+    }
+  };
+
+  const logoutWhatsApp = async (restart = false) => {
+    if (!confirm(restart 
+      ? '¿Deseas reiniciar la conexión y regenerar un nuevo código QR? Se limpiará la sesión en la base de datos para solucionar fallos.' 
+      : '¿Deseas cerrar la sesión de WhatsApp del consultorio? El bot dejará de responder mensajes hasta volver a vincular.')) {
+      return;
+    }
+
+    setWaLoading(true);
+    try {
+      const res = await fetch('/api/admin/whatsapp/logout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ restart })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setWaStatus(data.status);
+        setQrCode(data.qr);
+        setFeedback(restart ? 'Sesión reiniciada. Generando nuevo código QR...' : 'Sesión de WhatsApp cerrada exitosamente.');
+        setTimeout(() => setFeedback(''), 3500);
+      }
+    } catch (e) {
+      alert('Error al cerrar la sesión de WhatsApp.');
+    } finally {
+      setWaLoading(false);
+    }
   };
 
   const updateAppointmentStatus = async (id: string, status: string) => {
@@ -1359,30 +1394,95 @@ export default function AdminPanel() {
               </div>
             </div>
 
-            <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50/50">
+            <div className="flex flex-col items-center justify-center p-6 sm:p-8 border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50/50">
               {waStatus === 'CONNECTED' ? (
-                <div className="text-center py-6">
-                  <CheckCircle2 className="w-16 h-16 text-emerald-500 mx-auto mb-3" />
-                  <p className="text-base font-bold text-slate-900">¡WhatsApp Vinculado con Éxito!</p>
-                  <p className="text-xs text-slate-500 max-w-sm mt-1">
-                    La sesión está guardada de forma segura y encriptada en la base de datos de Supabase. Sobrevive a los reinicios de Render.
-                  </p>
+                <div className="text-center py-4 space-y-5 max-w-md mx-auto">
+                  <div className="w-16 h-16 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center mx-auto shadow-sm">
+                    <CheckCircle2 className="w-9 h-9" />
+                  </div>
+                  <div>
+                    <p className="text-base font-black text-slate-900">¡WhatsApp Vinculado con Éxito!</p>
+                    <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                      El asistente inteligente está respondiendo mensajes de pacientes y gestionando turnos 24/7 en Render. La sesión está guardada de forma segura en Supabase.
+                    </p>
+                  </div>
+
+                  {/* BOTONES DE GESTIÓN CUANDO ESTÁ CONECTADO */}
+                  <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2.5">
+                    <button
+                      onClick={() => logoutWhatsApp(true)}
+                      disabled={waLoading}
+                      className="w-full sm:w-auto px-4 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl text-xs transition shadow-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${waLoading ? 'animate-spin' : ''}`} />
+                      Reiniciar y Regenerar QR
+                    </button>
+                    <button
+                      onClick={() => logoutWhatsApp(false)}
+                      disabled={waLoading}
+                      className="w-full sm:w-auto px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-xl text-xs transition border border-rose-200 flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      <PowerOff className="w-3.5 h-3.5" />
+                      Cerrar Sesión
+                    </button>
+                  </div>
                 </div>
               ) : qrCode && waStatus === 'QR_READY' ? (
-                <div className="text-center">
-                  <img src={qrCode} alt="WhatsApp QR" className="w-64 h-64 mx-auto rounded-2xl shadow-lg border border-slate-200" />
-                  <p className="text-xs font-bold text-slate-700 mt-4">Escanea este código desde WhatsApp</p>
-                  <p className="text-[11px] text-slate-400">Dispositivos vinculados &gt; Vincular un dispositivo</p>
+                <div className="text-center space-y-4">
+                  <img src={qrCode} alt="WhatsApp QR" className="w-64 h-64 mx-auto rounded-2xl shadow-lg border border-slate-200 bg-white p-2" />
+                  <div>
+                    <p className="text-xs font-black text-slate-800">Escanea este código desde WhatsApp</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Dispositivos vinculados &gt; Vincular un dispositivo</p>
+                  </div>
+
+                  {/* BOTONES CUANDO ESTÁ EL QR LISTO */}
+                  <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2.5">
+                    <button
+                      onClick={() => logoutWhatsApp(true)}
+                      disabled={waLoading}
+                      className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-xs transition shadow-sm flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${waLoading ? 'animate-spin' : ''}`} />
+                      Regenerar Nuevo QR
+                    </button>
+                    <button
+                      onClick={() => logoutWhatsApp(false)}
+                      disabled={waLoading}
+                      className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      <XCircle className="w-3.5 h-3.5" />
+                      Cancelar
+                    </button>
+                  </div>
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <QrCode className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                  <button
-                    onClick={startWhatsApp}
-                    className="px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-xs transition shadow-md"
-                  >
-                    Iniciar Conexión / Generar QR
-                  </button>
+                <div className="text-center py-6 space-y-4">
+                  <QrCode className="w-12 h-12 text-slate-300 mx-auto" />
+                  <div className="max-w-xs mx-auto">
+                    <p className="text-xs font-bold text-slate-700">Sin conexión activa</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Genera el código QR para vincular el número del consultorio con el bot.
+                    </p>
+                  </div>
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
+                    <button
+                      onClick={startWhatsApp}
+                      disabled={waLoading}
+                      className="px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-xs transition shadow-md flex items-center gap-2 disabled:opacity-50"
+                    >
+                      <QrCode className="w-4 h-4" />
+                      {waLoading ? 'Iniciando...' : 'Iniciar Conexión / Generar QR'}
+                    </button>
+                    <button
+                      onClick={() => logoutWhatsApp(true)}
+                      disabled={waLoading}
+                      title="Si la conexión se trabó, esto limpia toda la sesión en Supabase y fuerza un nuevo QR fresco"
+                      className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${waLoading ? 'animate-spin' : ''}`} />
+                      Limpiar Sesión y Forzar QR
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

@@ -56,10 +56,12 @@ const botState: BotState = {
 };
 
 let activeSock: any = null;
+let isExplicitLogout = false;
 
 async function startWhatsApp() {
   if (botState.status === 'CONNECTED' || botState.status === 'INITIALIZING') return;
 
+  isExplicitLogout = false;
   botState.status = 'INITIALIZING';
   const logger = pino({ level: 'silent' });
   const { version } = await fetchLatestBaileysVersion();
@@ -91,7 +93,7 @@ async function startWhatsApp() {
 
     if (connection === 'close') {
       const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
-      const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+      const shouldReconnect = statusCode !== DisconnectReason.loggedOut && !isExplicitLogout;
       botState.status = 'DISCONNECTED';
 
       if (shouldReconnect) {
@@ -565,6 +567,45 @@ app.delete('/api/admin/users/:id', async (req, res) => {
 app.post('/api/admin/whatsapp/start', async (req, res) => {
   await startWhatsApp();
   res.json({ status: botState.status, qr: botState.qr });
+});
+
+// Cerrar Sesión de WhatsApp y Eliminar Credenciales (Permite regenerar QR y solucionar fallos)
+app.post('/api/admin/whatsapp/logout', async (req, res) => {
+  try {
+    isExplicitLogout = true;
+    if (activeSock) {
+      try {
+        await activeSock.logout().catch(() => {});
+        activeSock.end(undefined);
+      } catch (e) {}
+      activeSock = null;
+    }
+
+    // Borrar credenciales de la base de datos Supabase
+    await prisma.whatsAppSession.deleteMany({
+      where: { id: { startsWith: 'clinic_main' } }
+    });
+
+    botState.status = 'DISCONNECTED';
+    botState.qr = null;
+    console.log('[WhatsApp] Sesión cerrada y credenciales eliminadas de Supabase.');
+
+    // Si se solicitó reiniciar de inmediato (regenerar QR)
+    if (req.body.restart) {
+      isExplicitLogout = false;
+      setTimeout(async () => {
+        try {
+          await startWhatsApp();
+        } catch (err) {
+          console.error('[WhatsApp Restart Error]:', err);
+        }
+      }, 1000);
+    }
+
+    res.json({ success: true, status: botState.status, qr: botState.qr });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Estado de WhatsApp
