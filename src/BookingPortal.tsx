@@ -215,16 +215,25 @@ export default function BookingPortal() {
         
         {/* Cabecera */}
         <div className="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div>
-            <span className="px-3 py-1 rounded-full bg-teal-50 text-teal-800 text-xs font-bold uppercase tracking-wider">
-              Enlace de Reserva Exclusivo
-            </span>
-            <h2 className="text-2xl font-black text-slate-900 mt-2">
-              {tokenData.clinic?.clinicName || 'Reserva de Turno'}
-            </h2>
-            <p className="text-xs text-slate-500">DNI Verificado: <strong className="text-slate-800 font-mono">{tokenData.dni}</strong></p>
+          <div className="flex items-center gap-4">
+            {tokenData.clinic?.logoUrl && (
+              <img 
+                src={tokenData.clinic.logoUrl} 
+                alt={tokenData.clinic.clinicName} 
+                className="w-14 h-14 rounded-2xl object-cover shadow-sm border border-slate-100 shrink-0 bg-white" 
+              />
+            )}
+            <div>
+              <span className="px-3 py-1 rounded-full bg-teal-50 text-teal-800 text-xs font-bold uppercase tracking-wider">
+                Enlace de Reserva Exclusivo
+              </span>
+              <h2 className="text-2xl font-black text-slate-900 mt-1">
+                {tokenData.clinic?.clinicName || 'Reserva de Turno'}
+              </h2>
+              <p className="text-xs text-slate-500">DNI Verificado: <strong className="text-slate-800 font-mono">{tokenData.dni}</strong></p>
+            </div>
           </div>
-          <div className="text-xs text-amber-800 bg-amber-50 px-4 py-2 rounded-xl border border-amber-200 font-medium">
+          <div className="text-xs text-amber-800 bg-amber-50 px-4 py-2 rounded-xl border border-amber-200 font-medium shrink-0">
             ⏳ Este enlace expira en 30 minutos
           </div>
         </div>

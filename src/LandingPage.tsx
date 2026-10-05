@@ -71,9 +71,17 @@ export default function LandingPage() {
       <nav className="bg-white/90 backdrop-blur-md sticky top-0 z-40 border-b border-slate-100 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 sm:px-8 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-teal-500 to-emerald-600 flex items-center justify-center text-white shadow-lg shadow-teal-500/20">
-              <Stethoscope className="w-6 h-6" />
-            </div>
+            {clinic.logoUrl ? (
+              <img 
+                src={clinic.logoUrl} 
+                alt={clinic.clinicName} 
+                className="w-11 h-11 rounded-2xl object-cover shadow-md border border-slate-100 bg-white" 
+              />
+            ) : (
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-teal-500 to-emerald-600 flex items-center justify-center text-white shadow-lg shadow-teal-500/20">
+                <Stethoscope className="w-6 h-6" />
+              </div>
+            )}
             <div>
               <h1 className="text-lg font-black tracking-tight text-slate-900">{clinic.clinicName}</h1>
               <p className="text-xs font-semibold text-teal-700">{clinic.specialty}</p>

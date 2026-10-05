@@ -39,6 +39,7 @@ import {
   RefreshCw,
   PowerOff
 } from 'lucide-react';
+import { updateFavicon } from './utils/favicon';
 
 export default function AdminPanel() {
   type Role = 'superadmin' | 'admin' | 'asistente';
@@ -128,7 +129,10 @@ export default function AdminPanel() {
         setAppointments(data.appointments || []);
         setPatients(data.patients || []);
         if (data.scheduleBlocks) setScheduleBlocks(data.scheduleBlocks || []);
-        if (data.clinic) setClinic(data.clinic);
+        if (data.clinic) {
+          setClinic(data.clinic);
+          if (data.clinic.logoUrl) updateFavicon(data.clinic.logoUrl);
+        }
       }
     } catch (e) {}
   };
@@ -404,6 +408,7 @@ export default function AdminPanel() {
         body: JSON.stringify(clinic)
       });
       if (res.ok) {
+        if (clinic.logoUrl) updateFavicon(clinic.logoUrl);
         setFeedback('¡Datos de la clínica y marca actualizados con éxito!');
         setTimeout(() => setFeedback(''), 3500);
       } else {
@@ -700,12 +705,23 @@ export default function AdminPanel() {
       {/* SIDEBAR */}
       <aside className="w-full md:w-64 bg-slate-900 text-white flex flex-col shrink-0">
         <div className="p-6 border-b border-slate-800">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-2">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
             <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400">Sistema Activo</span>
           </div>
-          <h1 className="text-lg font-black tracking-tight text-white line-clamp-1">{clinic.clinicName || 'Consultorio Pro'}</h1>
-          <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">{clinic.doctorName || 'Dr. Juan Pérez'}</p>
+          <div className="flex items-center gap-3">
+            {clinic.logoUrl && (
+              <img 
+                src={clinic.logoUrl} 
+                alt={clinic.clinicName} 
+                className="w-10 h-10 rounded-xl object-cover bg-white p-0.5 shrink-0 shadow-sm border border-slate-700" 
+              />
+            )}
+            <div className="overflow-hidden">
+              <h1 className="text-base font-black tracking-tight text-white line-clamp-1">{clinic.clinicName || 'Consultorio Pro'}</h1>
+              <p className="text-xs text-slate-400 line-clamp-1">{clinic.doctorName || 'Dr. Juan Pérez'}</p>
+            </div>
+          </div>
         </div>
 
         {/* PERFIL DEL USUARIO AUTENTICADO */}
@@ -1728,6 +1744,43 @@ export default function AdminPanel() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  
+                  {/* LOGO DE LA CLÍNICA & FAVICON (URL) */}
+                  <div className="sm:col-span-2 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+                    <label className="block text-xs font-bold text-slate-700 uppercase mb-2 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-indigo-600" /> Logo de la Clínica & Favicon (URL)
+                      </span>
+                      <span className="text-[10px] text-indigo-600 font-semibold lowercase">Formatos: .png, .jpg, .svg, .webp</span>
+                    </label>
+                    <div className="flex flex-col sm:flex-row items-center gap-3.5">
+                      <div className="w-16 h-16 rounded-2xl border border-slate-200 bg-white flex items-center justify-center p-1 shrink-0 shadow-sm overflow-hidden">
+                        {clinic.logoUrl ? (
+                          <img 
+                            src={clinic.logoUrl} 
+                            alt="Logo preview" 
+                            onError={(e: any) => { e.target.style.display = 'none'; }}
+                            className="w-full h-full object-contain rounded-xl"
+                          />
+                        ) : (
+                          <span className="text-[10px] font-bold text-slate-400 text-center uppercase">Sin Logo</span>
+                        )}
+                      </div>
+                      <div className="flex-1 w-full">
+                        <input 
+                          type="url"
+                          value={clinic.logoUrl || ''}
+                          onChange={e => setClinic({ ...clinic, logoUrl: e.target.value })}
+                          placeholder="https://ejemplo.com/imagenes/logo-clinica.png"
+                          className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-mono outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                        <p className="text-[11px] text-slate-500 mt-1">
+                          Al guardar, este logo se mostrará en la cabecera de la Landing y se aplicará automáticamente como <strong>Favicon</strong> en la pestaña del navegador para todos los visitantes.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
                   <div>
                     <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Nombre del Consultorio / Clínica</label>
                     <input 
