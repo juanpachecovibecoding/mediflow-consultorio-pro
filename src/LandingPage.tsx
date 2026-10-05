@@ -113,7 +113,7 @@ export default function LandingPage() {
           <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-teal-50 border border-teal-200 text-teal-800 text-xs font-bold tracking-wide">
               <Sparkles className="w-4 h-4 text-teal-600" />
-              Atención personalizada con Asistente Virtual 24/7
+              Atención personalizada con Asistente 24/7
             </div>
 
             <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-[1.1]">
@@ -126,8 +126,8 @@ export default function LandingPage() {
 
             <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start pt-2">
               <a 
-                href={waUrl}
-                target="_blank"
+                href={waUrl} 
+                target="_blank" 
                 rel="noopener noreferrer"
                 className="w-full sm:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl shadow-xl shadow-emerald-600/25 transition-all hover:scale-105 text-base"
               >
@@ -155,7 +155,7 @@ export default function LandingPage() {
               <div>
                 <h3 className="text-2xl font-black text-slate-900 mb-2">Reserva Simple por WhatsApp</h3>
                 <p className="text-sm text-slate-600 leading-relaxed">
-                  Evitá llamadas telefónicas y esperas innecesarias. Nuestro asistente virtual de WhatsApp te solicitará tu DNI y te entregará tu acceso exclusivo a la agenda al instante.
+                  Evitá llamadas telefónicas y esperas innecesarias. Nuestro asistente de WhatsApp te solicitará tu DNI y te entregará tu acceso exclusivo a la agenda al instante.
                 </p>
               </div>
 
@@ -166,7 +166,7 @@ export default function LandingPage() {
                 </div>
                 <div className="flex items-center gap-3 text-xs font-semibold text-slate-700">
                   <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-[10px]">2</div>
-                  <span>La IA verifica tu DNI y te da un enlace</span>
+                  <span>El sistema verifica tu DNI y te da un link para agendarte el horario mas conveniente</span>
                 </div>
                 <div className="flex items-center gap-3 text-xs font-semibold text-slate-700">
                   <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-[10px]">3</div>
