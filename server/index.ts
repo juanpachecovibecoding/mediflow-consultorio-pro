@@ -398,8 +398,168 @@ app.post('/api/booking/confirm', async (req, res) => {
 });
 
 // -------------------------------------------------------------
-// 4. Endpoints del Panel de Administración (3 Roles)
+// 4. Autenticación y Gestión de Usuarios (Login & SuperAdmin)
 // -------------------------------------------------------------
+
+// Login universal para el /panel (SuperAdmin, Doctor/Admin y Asistente)
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Por favor ingresa usuario y contraseña.' });
+    }
+
+    const cleanUser = username.trim().toLowerCase();
+
+    // 1. Acceso SuperAdmin Maestro
+    if (cleanUser === 'superadmin') {
+      const config = await prisma.systemConfig.findFirst();
+      const validPin = config?.superAdminPin || 'superadmin123';
+      if (password === validPin) {
+        return res.json({
+          success: true,
+          user: {
+            id: 'superadmin',
+            username: 'superadmin',
+            name: 'SuperAdmin Master',
+            role: 'superadmin'
+          }
+        });
+      } else {
+        return res.status(401).json({ error: 'PIN o contraseña de SuperAdmin incorrecta.' });
+      }
+    }
+
+    // 2. Acceso Usuarios de la Clínica (Doctor y Asistente)
+    const user = await prisma.user.findUnique({
+      where: { username: cleanUser }
+    });
+
+    if (!user || user.password !== password) {
+      return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
+    }
+
+    if (!user.active) {
+      return res.status(403).json({ error: 'Este usuario ha sido desactivado. Consulta con soporte.' });
+    }
+
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        role: user.role
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Listar Usuarios (Exclusivo SuperAdmin)
+app.get('/api/admin/users', async (req, res) => {
+  try {
+    const pin = req.headers['x-admin-pin'];
+    const config = await prisma.systemConfig.findFirst();
+    if (config && pin !== config.superAdminPin) {
+      return res.status(401).json({ error: 'PIN de SuperAdmin no autorizado.' });
+    }
+
+    const users = await prisma.user.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json({ users });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Crear Usuario (Exclusivo SuperAdmin)
+app.post('/api/admin/users', async (req, res) => {
+  try {
+    const pin = req.headers['x-admin-pin'];
+    const config = await prisma.systemConfig.findFirst();
+    if (config && pin !== config.superAdminPin) {
+      return res.status(401).json({ error: 'PIN de SuperAdmin no autorizado.' });
+    }
+
+    const { username, password, name, role } = req.body;
+    if (!username || !password || !name) {
+      return res.status(400).json({ error: 'Nombre, usuario y contraseña son requeridos.' });
+    }
+
+    const cleanUser = username.trim().toLowerCase();
+    if (cleanUser === 'superadmin') {
+      return res.status(400).json({ error: 'El nombre "superadmin" está reservado para el SuperAdmin.' });
+    }
+
+    const existing = await prisma.user.findUnique({ where: { username: cleanUser } });
+    if (existing) {
+      return res.status(400).json({ error: 'El nombre de usuario ya está en uso.' });
+    }
+
+    const newUser = await prisma.user.create({
+      data: {
+        username: cleanUser,
+        password,
+        name,
+        role: role === 'admin' ? 'admin' : 'asistente'
+      }
+    });
+
+    res.json({ success: true, user: newUser });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Actualizar Usuario (Exclusivo SuperAdmin: Cambiar rol, contraseña, nombre, activo)
+app.patch('/api/admin/users/:id', async (req, res) => {
+  try {
+    const pin = req.headers['x-admin-pin'];
+    const config = await prisma.systemConfig.findFirst();
+    if (config && pin !== config.superAdminPin) {
+      return res.status(401).json({ error: 'PIN de SuperAdmin no autorizado.' });
+    }
+
+    const { id } = req.params;
+    const { name, username, password, role, active } = req.body;
+
+    const data: any = {};
+    if (name !== undefined) data.name = name;
+    if (username !== undefined) data.username = username.trim().toLowerCase();
+    if (password) data.password = password;
+    if (role !== undefined) data.role = role === 'admin' ? 'admin' : 'asistente';
+    if (active !== undefined) data.active = Boolean(active);
+
+    const updated = await prisma.user.update({
+      where: { id },
+      data
+    });
+
+    res.json({ success: true, user: updated });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Eliminar Usuario (Exclusivo SuperAdmin)
+app.delete('/api/admin/users/:id', async (req, res) => {
+  try {
+    const pin = req.headers['x-admin-pin'];
+    const config = await prisma.systemConfig.findFirst();
+    if (config && pin !== config.superAdminPin) {
+      return res.status(401).json({ error: 'PIN de SuperAdmin no autorizado.' });
+    }
+
+    const { id } = req.params;
+    await prisma.user.delete({ where: { id } });
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Iniciar WhatsApp
 app.post('/api/admin/whatsapp/start', async (req, res) => {
@@ -552,11 +712,30 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
+async function seedInitialUsers() {
+  try {
+    const count = await prisma.user.count();
+    if (count === 0) {
+      await prisma.user.createMany({
+        data: [
+          { username: 'admin', password: 'admin123', name: 'Dr. Juan Pérez', role: 'admin' },
+          { username: 'secretaria', password: 'secretaria123', name: 'Secretaría de Consultorio', role: 'asistente' }
+        ]
+      });
+      console.log('[Auth] Usuarios iniciales sembrados exitosamente (admin / secretaria).');
+    }
+  } catch (e) {
+    console.error('[Auth Seed Error]:', e);
+  }
+}
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`===================================================`);
   console.log(`🏥 Consultorio-Pro | Sistema Médico & WhatsApp IA`);
   console.log(`🚀 Servidor en ejecución: ${APP_URL}`);
   console.log(`===================================================`);
+  // Sembrar usuarios iniciales si no existen
+  seedInitialUsers().catch(console.error);
   // Auto-iniciar conexión de WhatsApp (restaura sesión persistida en Supabase)
   startWhatsApp().catch((err) => console.error('[WhatsApp AutoStart Error]:', err));
 });

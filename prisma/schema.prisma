@@ -126,3 +126,16 @@ model WhatsAppSession {
   data      String   // JSON serializado con credenciales y claves criptográficas
   updatedAt DateTime @updatedAt
 }
+
+// 9. Usuarios del Sistema (Admin / Doctor y Secretaria / Asistente)
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String
+  name      String
+  role      String   @default("asistente") // "admin" o "asistente"
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+

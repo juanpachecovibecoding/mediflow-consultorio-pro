@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { 
   Calendar, 
   Users, 
-  Settings, 
   Lock, 
   QrCode, 
   Clock, 
@@ -16,12 +15,39 @@ import {
   Briefcase,
   KeyRound,
   Sparkles,
-  Sliders
+  Sliders,
+  LogOut,
+  UserPlus,
+  UserCheck,
+  UserX,
+  Trash2,
+  Edit3,
+  Stethoscope,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 export default function AdminPanel() {
   type Role = 'superadmin' | 'admin' | 'asistente';
-  const [role, setRole] = useState<Role>('admin');
+  
+  // Estado de Autenticación
+  const [currentUser, setCurrentUser] = useState<any>(() => {
+    try {
+      const saved = localStorage.getItem('consultorio_auth');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  // Campos de formulario Login
+  const [loginUsername, setLoginUsername] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Navegación
   const [activeTab, setActiveTab] = useState<'agenda' | 'pacientes' | 'whatsapp' | 'configuracion' | 'perfil_clinica'>('agenda');
 
   // Datos de la clínica y agenda
@@ -31,18 +57,24 @@ export default function AdminPanel() {
   const [waStatus, setWaStatus] = useState<string>('DISCONNECTED');
   const [qrCode, setQrCode] = useState<string | null>(null);
 
+  // SuperAdmin: Gestión de Usuarios
+  const [systemUsers, setSystemUsers] = useState<any[]>([]);
+  const [newUserModal, setNewUserModal] = useState(false);
+  const [newUserData, setNewUserData] = useState({ name: '', username: '', password: '', role: 'asistente' });
+  const [pwdChangeModal, setPwdChangeModal] = useState<{ open: boolean; userId: string; username: string }>({ open: false, userId: '', username: '' });
+  const [newPasswordVal, setNewPasswordVal] = useState('');
+
   // SuperAdmin Config & Seguridad
   const [superAdminPin, setSuperAdminPin] = useState('superadmin123');
-  const [pinInput, setPinInput] = useState('');
-  const [isSuperAdminUnlocked, setIsSuperAdminUnlocked] = useState(false);
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [geminiModel, setGeminiModel] = useState('gemini-3.8-flash');
   const [systemPrompt, setSystemPrompt] = useState('');
   const [newSuperAdminPin, setNewSuperAdminPin] = useState('');
-  const [superAdminSubTab, setSuperAdminSubTab] = useState<'clinica' | 'recordatorios' | 'ia'>('clinica');
+  const [superAdminSubTab, setSuperAdminSubTab] = useState<'usuarios' | 'clinica' | 'recordatorios' | 'ia'>('usuarios');
 
   const [feedback, setFeedback] = useState('');
 
+  // Cargar datos al estar autenticado
   const loadAgenda = async () => {
     try {
       const res = await fetch('/api/admin/agenda');
@@ -66,19 +98,22 @@ export default function AdminPanel() {
     } catch (e) {}
   };
 
-  const startWhatsApp = async () => {
+  const loadUsersList = async () => {
     try {
-      const res = await fetch('/api/admin/whatsapp/start', { method: 'POST' });
-      const data = await res.json();
-      setWaStatus(data.status);
-      setQrCode(data.qr);
+      const res = await fetch('/api/admin/users', {
+        headers: { 'x-admin-pin': superAdminPin }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSystemUsers(data.users || []);
+      }
     } catch (e) {}
   };
 
-  const loadSuperAdminConfig = async (pinToUse: string = superAdminPin) => {
+  const loadSuperAdminConfig = async () => {
     try {
       const res = await fetch('/api/admin/system-config', {
-        headers: { 'x-admin-pin': pinToUse }
+        headers: { 'x-admin-pin': superAdminPin }
       });
       if (res.ok) {
         const data = await res.json();
@@ -86,54 +121,74 @@ export default function AdminPanel() {
         setGeminiModel(data.geminiModel || 'gemini-3.8-flash');
         setSystemPrompt(data.systemPrompt || '');
         setNewSuperAdminPin(data.superAdminPin || 'superadmin123');
-        setIsSuperAdminUnlocked(true);
-        return true;
-      } else {
-        return false;
       }
-    } catch (e) {
-      return false;
-    }
+    } catch (e) {}
   };
 
   useEffect(() => {
-    loadAgenda();
-    loadWaStatus();
-    const interval = setInterval(loadWaStatus, 3000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleRoleChange = async (newRole: Role) => {
-    if (newRole === 'superadmin') {
-      if (!isSuperAdminUnlocked) {
-        const success = await loadSuperAdminConfig(superAdminPin);
-        if (!success) {
-          // Si el PIN por defecto no coincide, pedimos PIN al usuario
-          const entered = prompt('🔐 Ingrese el PIN de SuperAdmin:');
-          if (entered) {
-            const ok = await loadSuperAdminConfig(entered);
-            if (ok) {
-              setSuperAdminPin(entered);
-              setRole('superadmin');
-              setActiveTab('configuracion');
-              return;
-            } else {
-              alert('PIN de SuperAdmin incorrecto.');
-              return;
-            }
-          } else {
-            return;
-          }
-        }
+    if (currentUser) {
+      loadAgenda();
+      loadWaStatus();
+      if (currentUser.role === 'superadmin') {
+        loadUsersList();
+        loadSuperAdminConfig();
       }
-      setRole('superadmin');
-      setActiveTab('configuracion');
-    } else {
-      setRole(newRole);
-      if (activeTab === 'configuracion') {
-        setActiveTab('agenda');
-      }
+      const interval = setInterval(loadWaStatus, 4000);
+      return () => clearInterval(interval);
     }
+  }, [currentUser]);
+
+  // Manejo de Login
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError('');
+    setLoginLoading(true);
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: loginUsername,
+          password: loginPassword
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setCurrentUser(data.user);
+        localStorage.setItem('consultorio_auth', JSON.stringify(data.user));
+        if (data.user.role === 'superadmin') {
+          setSuperAdminPin(loginPassword);
+          setActiveTab('configuracion');
+        } else {
+          setActiveTab('agenda');
+        }
+      } else {
+        setLoginError(data.error || 'Credenciales no válidas.');
+      }
+    } catch (e) {
+      setLoginError('Error de conexión con el servidor.');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('consultorio_auth');
+    setCurrentUser(null);
+    setLoginUsername('');
+    setLoginPassword('');
+    setActiveTab('agenda');
+  };
+
+  const startWhatsApp = async () => {
+    try {
+      const res = await fetch('/api/admin/whatsapp/start', { method: 'POST' });
+      const data = await res.json();
+      setWaStatus(data.status);
+      setQrCode(data.qr);
+    } catch (e) {}
   };
 
   const updateAppointmentStatus = async (id: string, status: string) => {
@@ -189,7 +244,7 @@ export default function AdminPanel() {
       });
       if (res.ok) {
         if (newSuperAdminPin) setSuperAdminPin(newSuperAdminPin);
-        setFeedback('¡Parámetros de IA y seguridad guardados!');
+        setFeedback('¡Parámetros de IA y PIN de seguridad guardados!');
         setTimeout(() => setFeedback(''), 3500);
       } else {
         alert('PIN de SuperAdmin no autorizado.');
@@ -198,6 +253,205 @@ export default function AdminPanel() {
       alert('Error al guardar configuración técnica.');
     }
   };
+
+  // Crear Usuario (SuperAdmin)
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-pin': superAdminPin
+        },
+        body: JSON.stringify(newUserData)
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setNewUserModal(false);
+        setNewUserData({ name: '', username: '', password: '', role: 'asistente' });
+        loadUsersList();
+        setFeedback('¡Nuevo usuario creado exitosamente!');
+        setTimeout(() => setFeedback(''), 3500);
+      } else {
+        alert(data.error || 'Error al crear usuario.');
+      }
+    } catch (e) {
+      alert('Error de conexión.');
+    }
+  };
+
+  // Cambiar Rol de Usuario (SuperAdmin)
+  const handleToggleUserRole = async (user: any) => {
+    const nextRole = user.role === 'admin' ? 'asistente' : 'admin';
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-pin': superAdminPin
+        },
+        body: JSON.stringify({ role: nextRole })
+      });
+      if (res.ok) {
+        loadUsersList();
+        setFeedback(`Rol de ${user.name} cambiado a ${nextRole === 'admin' ? 'Doctor / Admin' : 'Secretaría'}.`);
+        setTimeout(() => setFeedback(''), 3500);
+      }
+    } catch (e) {}
+  };
+
+  // Alternar Activo/Inactivo (SuperAdmin)
+  const handleToggleUserActive = async (user: any) => {
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-pin': superAdminPin
+        },
+        body: JSON.stringify({ active: !user.active })
+      });
+      if (res.ok) {
+        loadUsersList();
+        setFeedback(`Usuario ${user.username} ${!user.active ? 'activado' : 'desactivado'}.`);
+        setTimeout(() => setFeedback(''), 3500);
+      }
+    } catch (e) {}
+  };
+
+  // Cambiar Contraseña de Usuario (SuperAdmin)
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPasswordVal.trim()) return;
+
+    try {
+      const res = await fetch(`/api/admin/users/${pwdChangeModal.userId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-pin': superAdminPin
+        },
+        body: JSON.stringify({ password: newPasswordVal.trim() })
+      });
+      if (res.ok) {
+        setPwdChangeModal({ open: false, userId: '', username: '' });
+        setNewPasswordVal('');
+        setFeedback('¡Contraseña actualizada exitosamente!');
+        setTimeout(() => setFeedback(''), 3500);
+      } else {
+        alert('Error al actualizar contraseña.');
+      }
+    } catch (e) {
+      alert('Error de conexión.');
+    }
+  };
+
+  // Eliminar Usuario (SuperAdmin)
+  const handleDeleteUser = async (id: string, name: string) => {
+    if (!confirm(`¿Estás seguro de eliminar el acceso de "${name}"? Esta acción no se puede deshacer.`)) return;
+
+    try {
+      const res = await fetch(`/api/admin/users/${id}`, {
+        method: 'DELETE',
+        headers: { 'x-admin-pin': superAdminPin }
+      });
+      if (res.ok) {
+        loadUsersList();
+        setFeedback('Usuario eliminado de la base de datos.');
+        setTimeout(() => setFeedback(''), 3500);
+      }
+    } catch (e) {}
+  };
+
+  // ---------------------------------------------------------------------------
+  // 1. PANTALLA DE LOGIN (SI NO ESTÁ AUTENTICADO)
+  // ---------------------------------------------------------------------------
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-teal-950 flex items-center justify-center p-4 selection:bg-teal-500 selection:text-white">
+        <div className="w-full max-w-md bg-white/95 backdrop-blur-xl rounded-[2.5rem] p-8 md:p-10 shadow-2xl border border-white/20">
+          
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-teal-500 to-emerald-600 flex items-center justify-center text-white mx-auto mb-4 shadow-lg shadow-teal-500/25">
+              <Stethoscope className="w-8 h-8" />
+            </div>
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight">Acceso al Panel</h2>
+            <p className="text-xs text-slate-500 mt-1 font-medium">
+              Consultorio Médico & Asistente Inteligente
+            </p>
+          </div>
+
+          {loginError && (
+            <div className="mb-6 p-3.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold rounded-2xl flex items-center gap-2 animate-shake">
+              <XCircle className="w-4 h-4 shrink-0 text-rose-500" />
+              <span>{loginError}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Usuario
+              </label>
+              <input 
+                type="text"
+                required
+                autoFocus
+                value={loginUsername}
+                onChange={e => setLoginUsername(e.target.value)}
+                placeholder="admin / secretaria / superadmin"
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium text-slate-800 placeholder-slate-400 outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Contraseña
+              </label>
+              <div className="relative">
+                <input 
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={loginPassword}
+                  onChange={e => setLoginPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium text-slate-800 placeholder-slate-400 outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loginLoading}
+              className="w-full mt-2 py-3.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-bold rounded-2xl shadow-lg shadow-teal-600/25 text-sm transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50"
+            >
+              {loginLoading ? 'Iniciando sesión...' : 'Ingresar al Sistema'}
+            </button>
+          </form>
+
+          <div className="mt-8 pt-6 border-t border-slate-100 text-center">
+            <a href="/" className="text-xs text-slate-400 hover:text-teal-600 font-semibold transition">
+              ← Volver a la página principal
+            </a>
+          </div>
+
+        </div>
+      </div>
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // 2. PANEL ADMINISTRATIVO AUTENTICADO
+  // ---------------------------------------------------------------------------
+  const role: Role = currentUser.role;
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row font-sans text-slate-800">
@@ -213,24 +467,34 @@ export default function AdminPanel() {
           <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">{clinic.doctorName || 'Dr. Juan Pérez'}</p>
         </div>
 
-        {/* SELECTOR DE ROL */}
-        <div className="p-4 bg-slate-950/60 border-b border-slate-800">
-          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5 flex items-center justify-between">
-            <span>Rol Activo</span>
-            {role === 'superadmin' && <span className="text-amber-400 font-mono text-[9px] bg-amber-500/20 px-1.5 py-0.5 rounded">MASTER</span>}
-          </label>
-          <select 
-            value={role}
-            onChange={e => handleRoleChange(e.target.value as Role)}
-            className="w-full bg-slate-800 text-slate-200 border border-slate-700 text-xs font-semibold py-2 px-2.5 rounded-xl outline-none focus:border-teal-500"
+        {/* PERFIL DEL USUARIO AUTENTICADO */}
+        <div className="p-4 bg-slate-950/70 border-b border-slate-800 flex items-center justify-between">
+          <div className="flex items-center gap-2.5 overflow-hidden">
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
+              role === 'superadmin' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+              role === 'admin' ? 'bg-teal-500/20 text-teal-400 border border-teal-500/30' :
+              'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+            }`}>
+              {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
+            </div>
+            <div className="overflow-hidden">
+              <p className="text-xs font-bold text-white truncate">{currentUser.name}</p>
+              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block truncate">
+                {role === 'superadmin' ? '👑 SuperAdmin' : role === 'admin' ? '👨‍⚕️ Doctor' : '📋 Secretaría'}
+              </span>
+            </div>
+          </div>
+
+          <button
+            onClick={handleLogout}
+            title="Cerrar Sesión"
+            className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition"
           >
-            <option value="superadmin">👑 SuperAdmin (Gestión & Venta)</option>
-            <option value="admin">👨‍⚕️ Doctor / Cliente (Operativo)</option>
-            <option value="asistente">📋 Asistente (Secretaría)</option>
-          </select>
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
 
-        {/* NAVEGACIÓN */}
+        {/* NAVEGACIÓN SEGÚN EL ROL */}
         <nav className="p-4 space-y-1.5 flex-1">
           <button
             onClick={() => setActiveTab('agenda')}
@@ -273,7 +537,7 @@ export default function AdminPanel() {
             </button>
           )}
 
-          {/* ROL SUPERADMIN: CONTROL TOTAL DE DATOS, MARCA E IA */}
+          {/* ROL SUPERADMIN: CONTROL TOTAL DE USUARIOS, MARCA E IA */}
           {role === 'superadmin' && (
             <button
               onClick={() => setActiveTab('configuracion')}
@@ -302,10 +566,10 @@ export default function AdminPanel() {
               {activeTab === 'pacientes' && 'Base de Pacientes Registrados'}
               {activeTab === 'whatsapp' && 'Conexión y Estado de WhatsApp'}
               {activeTab === 'perfil_clinica' && 'Información de Mi Consultorio'}
-              {activeTab === 'configuracion' && 'Panel de Control SuperAdmin (Gestión de Cliente & IA)'}
+              {activeTab === 'configuracion' && 'Panel de Control SuperAdmin (Gestión & Venta)'}
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Acceso en modo: <strong className="text-slate-800 uppercase">{role === 'superadmin' ? 'SuperAdmin (Dueño / Desarrollador)' : role === 'admin' ? 'Doctor / Cliente' : 'Secretaría'}</strong>
+              Sesión iniciada como: <strong className="text-slate-800 uppercase">{currentUser.name} ({role})</strong>
             </p>
           </div>
 
@@ -504,7 +768,6 @@ export default function AdminPanel() {
         {/* 4. TAB: MI CONSULTORIO (VISTA SOLO LECTURA PARA EL CLIENTE / DOCTOR) */}
         {activeTab === 'perfil_clinica' && role === 'admin' && (
           <div className="max-w-3xl space-y-6">
-            {/* AVISO DE PERSONALIZACIÓN GESTIONADA */}
             <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-200 p-5 rounded-3xl flex items-start gap-4">
               <div className="p-2.5 bg-amber-500 text-white rounded-2xl shrink-0 shadow-sm">
                 <Lock className="w-5 h-5" />
@@ -518,7 +781,6 @@ export default function AdminPanel() {
               </div>
             </div>
 
-            {/* TARJETA DE DATOS ACTUALES (SOLO LECTURA) */}
             <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
               <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                 <div>
@@ -578,12 +840,21 @@ export default function AdminPanel() {
           </div>
         )}
 
-        {/* 5. TAB: CONFIGURACIÓN SUPERADMIN (DATOS DE CLÍNICA + IA + SEGURIDAD) */}
+        {/* 5. TAB: CONFIGURACIÓN SUPERADMIN */}
         {activeTab === 'configuracion' && role === 'superadmin' && (
           <div className="max-w-4xl space-y-6">
             
             {/* SUB-NAVEGACIÓN SUPERADMIN */}
             <div className="flex flex-wrap gap-2 p-1.5 bg-slate-200/80 rounded-2xl w-fit">
+              <button
+                onClick={() => setSuperAdminSubTab('usuarios')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
+                  superAdminSubTab === 'usuarios' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Users className="w-4 h-4" /> Gestión de Usuarios (Clientes & Secretaría)
+              </button>
+
               <button
                 onClick={() => setSuperAdminSubTab('clinica')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
@@ -612,7 +883,114 @@ export default function AdminPanel() {
               </button>
             </div>
 
-            {/* SECCIÓN 1: DATOS DE LA CLÍNICA & MARCA */}
+            {/* SECCIÓN 1: GESTIÓN DE USUARIOS POR ROLES (ADMIN & SECRETARIA) */}
+            {superAdminSubTab === 'usuarios' && (
+              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden p-6 md:p-8 space-y-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div>
+                    <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                      <Users className="w-5 h-5 text-indigo-600" /> Control de Accesos y Usuarios
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Crea y administra las cuentas de tus clientes (Doctores / Administradores) y su personal (Secretarias).
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => setNewUserModal(true)}
+                    className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition shadow-md flex items-center gap-2 shrink-0"
+                  >
+                    <UserPlus className="w-4 h-4" /> Crear Nuevo Usuario
+                  </button>
+                </div>
+
+                {/* TABLA DE USUARIOS */}
+                <div className="overflow-x-auto rounded-2xl border border-slate-100">
+                  <table className="w-full text-left text-sm text-slate-600">
+                    <thead className="bg-slate-50 text-slate-400 font-bold text-[11px] uppercase tracking-wider border-b border-slate-100">
+                      <tr>
+                        <th className="py-3 px-4">Nombre / Persona</th>
+                        <th className="py-3 px-4">Usuario</th>
+                        <th className="py-3 px-4">Rol Asignado</th>
+                        <th className="py-3 px-4">Estado</th>
+                        <th className="py-3 px-4 text-right">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {systemUsers.map((u) => (
+                        <tr key={u.id} className="hover:bg-slate-50/80 transition">
+                          <td className="py-3.5 px-4 font-bold text-slate-900">{u.name}</td>
+                          <td className="py-3.5 px-4 font-mono text-xs font-semibold text-slate-600">{u.username}</td>
+                          <td className="py-3.5 px-4">
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold ${
+                              u.role === 'admin' 
+                                ? 'bg-teal-50 text-teal-700 border border-teal-200' 
+                                : 'bg-blue-50 text-blue-700 border border-blue-200'
+                            }`}>
+                              {u.role === 'admin' ? '👨‍⚕️ Administrador (Doctor)' : '📋 Secretaría (Asistente)'}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
+                              u.active ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+                            }`}>
+                              {u.active ? 'Activo' : 'Inactivo'}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 text-right space-x-1.5 whitespace-nowrap">
+                            <button
+                              onClick={() => handleToggleUserRole(u)}
+                              title="Cambiar Rol (Doctor ⇄ Secretaría)"
+                              className="px-2 py-1 text-xs bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 font-bold rounded-lg transition"
+                            >
+                              Cambiar Rol
+                            </button>
+                            <button
+                              onClick={() => {
+                                setPwdChangeModal({ open: true, userId: u.id, username: u.username });
+                                setNewPasswordVal('');
+                              }}
+                              title="Cambiar Contraseña"
+                              className="px-2 py-1 text-xs bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-700 font-bold rounded-lg transition"
+                            >
+                              Cambiar Clave
+                            </button>
+                            <button
+                              onClick={() => handleToggleUserActive(u)}
+                              title={u.active ? 'Desactivar Usuario' : 'Activar Usuario'}
+                              className={`p-1 rounded-lg transition ${
+                                u.active ? 'text-slate-400 hover:text-amber-600 hover:bg-amber-50' : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'
+                              }`}
+                            >
+                              {u.active ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteUser(u.id, u.name)}
+                              title="Eliminar Usuario"
+                              className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    💡 <strong>Roles del Sistema:</strong>
+                    <br />
+                    • <strong>Administrador (Doctor):</strong> Acceso a la agenda, lista de pacientes, vinculación de WhatsApp y perfil del consultorio (solo lectura).
+                    <br />
+                    • <strong>Secretaría (Asistente):</strong> Acceso exclusivo a ver la agenda de turnos y directorio de pacientes. Sin acceso a WhatsApp ni configuraciones.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* SECCIÓN 2: DATOS DE LA CLÍNICA & MARCA */}
             {superAdminSubTab === 'clinica' && (
               <form onSubmit={saveClinicDataAsSuperAdmin} className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
                 <div>
@@ -726,7 +1104,7 @@ export default function AdminPanel() {
               </form>
             )}
 
-            {/* SECCIÓN 2: RECORDATORIOS & ANTI-BAN */}
+            {/* SECCIÓN 3: RECORDATORIOS & ANTI-BAN */}
             {superAdminSubTab === 'recordatorios' && (
               <form onSubmit={saveClinicDataAsSuperAdmin} className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
                 <div>
@@ -789,7 +1167,7 @@ export default function AdminPanel() {
               </form>
             )}
 
-            {/* SECCIÓN 3: IA & SEGURIDAD */}
+            {/* SECCIÓN 4: IA & SEGURIDAD */}
             {superAdminSubTab === 'ia' && (
               <form onSubmit={saveSuperAdminConfig} className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
                 <div>
@@ -846,7 +1224,7 @@ export default function AdminPanel() {
                       className="w-full sm:w-64 px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-mono font-bold text-indigo-700 outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                     <p className="text-[11px] text-slate-500 mt-1">
-                      Este PIN protege esta sección para que los clientes o asistentes nunca puedan alterar la marca o la configuración técnica.
+                      Este PIN protege esta sección y sirve como contraseña para el usuario "superadmin".
                     </p>
                   </div>
                 </div>
@@ -866,6 +1244,131 @@ export default function AdminPanel() {
         )}
 
       </main>
+
+      {/* MODAL: CREAR NUEVO USUARIO (SUPERADMIN) */}
+      {newUserModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-100 animate-fade-in">
+            <h3 className="text-lg font-black text-slate-900 mb-1 flex items-center gap-2">
+              <UserPlus className="w-5 h-5 text-indigo-600" /> Crear Usuario de Consultorio
+            </h3>
+            <p className="text-xs text-slate-500 mb-6">
+              Asigna las credenciales y rol para tu cliente o su personal.
+            </p>
+
+            <form onSubmit={handleCreateUser} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Nombre Completo</label>
+                <input 
+                  type="text"
+                  required
+                  placeholder="Ej: Dr. Roberto Gómez / Ana López"
+                  value={newUserData.name}
+                  onChange={e => setNewUserData({ ...newUserData, name: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Nombre de Usuario (Login)</label>
+                <input 
+                  type="text"
+                  required
+                  placeholder="Ej: drgomez / recepcion"
+                  value={newUserData.username}
+                  onChange={e => setNewUserData({ ...newUserData, username: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-mono outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Contraseña Inicial</label>
+                <input 
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={newUserData.password}
+                  onChange={e => setNewUserData({ ...newUserData, password: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Rol en el Sistema</label>
+                <select
+                  value={newUserData.role}
+                  onChange={e => setNewUserData({ ...newUserData, role: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm bg-white outline-none focus:ring-2 focus:ring-indigo-500 font-semibold"
+                >
+                  <option value="admin">👨‍⚕️ Administrador (Doctor / Cliente)</option>
+                  <option value="asistente">📋 Secretaría (Asistente de Consultorio)</option>
+                </select>
+              </div>
+
+              <div className="pt-4 flex justify-end gap-2.5 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setNewUserModal(false)}
+                  className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition"
+                >
+                  Crear Usuario
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: CAMBIAR CONTRASEÑA DE USUARIO (SUPERADMIN) */}
+      {pwdChangeModal.open && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-white rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-100 animate-fade-in">
+            <h3 className="text-lg font-black text-slate-900 mb-1 flex items-center gap-2">
+              <KeyRound className="w-5 h-5 text-indigo-600" /> Cambiar Contraseña
+            </h3>
+            <p className="text-xs text-slate-500 mb-5">
+              Asignar una nueva clave para el usuario <strong className="text-slate-800 font-mono">@{pwdChangeModal.username}</strong>.
+            </p>
+
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Nueva Contraseña</label>
+                <input 
+                  type="text"
+                  required
+                  autoFocus
+                  placeholder="Nueva contraseña..."
+                  value={newPasswordVal}
+                  onChange={e => setNewPasswordVal(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-mono outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="pt-3 flex justify-end gap-2.5 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setPwdChangeModal({ open: false, userId: '', username: '' })}
+                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition"
+                >
+                  Actualizar Clave
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );
