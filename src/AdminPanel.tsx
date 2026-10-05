@@ -24,7 +24,15 @@ import {
   Edit3,
   Stethoscope,
   Eye,
-  EyeOff
+  EyeOff,
+  ListOrdered,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Ban,
+  Plus,
+  Unlock,
+  AlertCircle
 } from 'lucide-react';
 
 export default function AdminPanel() {
@@ -50,12 +58,32 @@ export default function AdminPanel() {
   // Navegación
   const [activeTab, setActiveTab] = useState<'agenda' | 'pacientes' | 'whatsapp' | 'configuracion' | 'perfil_clinica'>('agenda');
 
-  // Datos de la clínica y agenda
+  // Sub-vista de la Agenda: 'proximos' | 'calendario'
+  const [agendaView, setAgendaView] = useState<'proximos' | 'calendario'>('proximos');
+
+  // Datos de la clínica, agenda y bloqueos
   const [appointments, setAppointments] = useState<any[]>([]);
   const [patients, setPatients] = useState<any[]>([]);
+  const [scheduleBlocks, setScheduleBlocks] = useState<any[]>([]);
   const [clinic, setClinic] = useState<any>({});
   const [waStatus, setWaStatus] = useState<string>('DISCONNECTED');
   const [qrCode, setQrCode] = useState<string | null>(null);
+
+  // Estado del Calendario Interactivo
+  const [calendarDate, setCalendarDate] = useState(() => new Date());
+  const [selectedDateStr, setSelectedDateStr] = useState(() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  });
+
+  // Estado de Formulario de Bloqueo
+  const [blockType, setBlockType] = useState<'dia' | 'horario'>('dia');
+  const [blockTime, setBlockTime] = useState('14:00');
+  const [blockReason, setBlockReason] = useState('Feriado / Sin atención');
+  const [blockLoading, setBlockLoading] = useState(false);
 
   // SuperAdmin: Gestión de Usuarios
   const [systemUsers, setSystemUsers] = useState<any[]>([]);
@@ -82,6 +110,7 @@ export default function AdminPanel() {
         const data = await res.json();
         setAppointments(data.appointments || []);
         setPatients(data.patients || []);
+        if (data.scheduleBlocks) setScheduleBlocks(data.scheduleBlocks || []);
         if (data.clinic) setClinic(data.clinic);
       }
     } catch (e) {}
@@ -199,6 +228,48 @@ export default function AdminPanel() {
         body: JSON.stringify({ status })
       });
       loadAgenda();
+    } catch (e) {}
+  };
+
+  // Crear Bloqueo de Horario / Día
+  const handleCreateBlock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBlockLoading(true);
+    try {
+      const res = await fetch('/api/admin/schedule-blocks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: selectedDateStr,
+          time: blockType === 'horario' ? blockTime : null,
+          reason: blockReason.trim() || 'Bloqueado por el consultorio'
+        })
+      });
+      if (res.ok) {
+        await loadAgenda();
+        setFeedback(`¡Bloqueo registrado para el día ${selectedDateStr}!`);
+        setTimeout(() => setFeedback(''), 3500);
+      } else {
+        alert('Error al crear bloqueo.');
+      }
+    } catch (e) {
+      alert('Error de conexión.');
+    } finally {
+      setBlockLoading(false);
+    }
+  };
+
+  // Eliminar Bloqueo (Liberar horario)
+  const handleDeleteBlock = async (blockId: string) => {
+    try {
+      const res = await fetch(`/api/admin/schedule-blocks/${blockId}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        await loadAgenda();
+        setFeedback('Bloqueo eliminado. Horario liberado en la agenda.');
+        setTimeout(() => setFeedback(''), 3500);
+      }
     } catch (e) {}
   };
 
@@ -363,6 +434,48 @@ export default function AdminPanel() {
       }
     } catch (e) {}
   };
+
+  // Helpers del Calendario
+  const monthNames = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
+  const dayLabels = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+
+  const calYear = calendarDate.getFullYear();
+  const calMonth = calendarDate.getMonth();
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  
+  let firstDayOfWeek = new Date(calYear, calMonth, 1).getDay();
+  // Ajuste para que Lunes sea el primer día (0) y Domingo el último (6)
+  firstDayOfWeek = (firstDayOfWeek + 6) % 7;
+
+  const calendarGrid = [];
+  for (let i = 0; i < firstDayOfWeek; i++) {
+    calendarGrid.push(null);
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    calendarGrid.push(d);
+  }
+
+  const prevMonth = () => {
+    setCalendarDate(new Date(calYear, calMonth - 1, 1));
+  };
+  const nextMonth = () => {
+    setCalendarDate(new Date(calYear, calMonth + 1, 1));
+  };
+  const goToday = () => {
+    const now = new Date();
+    setCalendarDate(new Date(now.getFullYear(), now.getMonth(), 1));
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    setSelectedDateStr(`${y}-${m}-${d}`);
+  };
+
+  // Turnos y bloqueos del día seleccionado
+  const selectedDayAppointments = appointments.filter(a => a.date === selectedDateStr);
+  const selectedDayBlocks = scheduleBlocks.filter(b => b.date === selectedDateStr);
 
   // ---------------------------------------------------------------------------
   // 1. PANTALLA DE LOGIN (SI NO ESTÁ AUTENTICADO)
@@ -581,80 +694,441 @@ export default function AdminPanel() {
           )}
         </header>
 
-        {/* 1. TAB: AGENDA */}
+        {/* 1. TAB: AGENDA (CON LAS 2 TARJETAS SOLICITADAS: PRÓXIMOS TURNOS Y CALENDARIO) */}
         {activeTab === 'agenda' && (
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-              <h3 className="font-bold text-slate-900">Próximos Turnos</h3>
-              <span className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
-                Total: {appointments.length}
-              </span>
-            </div>
+          <div className="space-y-6">
             
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-slate-600">
-                <thead className="bg-slate-50 text-slate-400 font-bold text-[11px] uppercase tracking-wider border-b border-slate-100">
-                  <tr>
-                    <th className="py-3.5 px-6">Fecha / Hora</th>
-                    <th className="py-3.5 px-6">Paciente</th>
-                    <th className="py-3.5 px-6">DNI</th>
-                    <th className="py-3.5 px-6">Teléfono</th>
-                    <th className="py-3.5 px-6">Estado</th>
-                    <th className="py-3.5 px-6 text-right">Acción</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {appointments.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="text-center py-12 text-slate-400 text-xs">
-                        No hay turnos registrados en la agenda.
-                      </td>
-                    </tr>
-                  ) : (
-                    appointments.map((appt) => (
-                      <tr key={appt.id} className="hover:bg-slate-50/80 transition">
-                        <td className="py-4 px-6 font-semibold text-slate-900 whitespace-nowrap">
-                          {appt.date} <span className="text-teal-600 ml-1">{appt.time} hs</span>
-                        </td>
-                        <td className="py-4 px-6 font-medium text-slate-900">{appt.patient?.name || '—'}</td>
-                        <td className="py-4 px-6 font-mono text-xs">{appt.patient?.dni || '—'}</td>
-                        <td className="py-4 px-6 text-xs text-slate-500">{appt.patient?.phone || '—'}</td>
-                        <td className="py-4 px-6">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ${
-                            appt.status === 'CONFIRMED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
-                            appt.status === 'SCHEDULED' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
-                            appt.status === 'CANCELLED' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
-                            'bg-slate-100 text-slate-700'
-                          }`}>
-                            {appt.status === 'CONFIRMED' ? 'Confirmado' :
-                             appt.status === 'SCHEDULED' ? 'Pendiente' :
-                             appt.status === 'CANCELLED' ? 'Cancelado' : appt.status}
-                          </span>
-                        </td>
-                        <td className="py-4 px-6 text-right space-x-2 whitespace-nowrap">
-                          {appt.status !== 'CONFIRMED' && (
-                            <button
-                              onClick={() => updateAppointmentStatus(appt.id, 'CONFIRMED')}
-                              className="px-2.5 py-1 text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg transition"
-                            >
-                              Confirmar
-                            </button>
-                          )}
-                          {appt.status !== 'CANCELLED' && (
-                            <button
-                              onClick={() => updateAppointmentStatus(appt.id, 'CANCELLED')}
-                              className="px-2.5 py-1 text-xs bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-lg transition"
-                            >
-                              Cancelar
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+            {/* LAS 2 TARJETAS PRINCIPALES */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              
+              {/* TARJETA 1: PRÓXIMOS TURNOS */}
+              <div 
+                onClick={() => setAgendaView('proximos')}
+                className={`p-6 rounded-3xl border transition-all cursor-pointer flex items-start gap-4 ${
+                  agendaView === 'proximos'
+                    ? 'bg-gradient-to-br from-teal-600 to-emerald-700 text-white shadow-xl shadow-teal-600/20 border-teal-500 scale-[1.01]'
+                    : 'bg-white text-slate-800 border-slate-200 hover:border-teal-300 hover:shadow-md'
+                }`}
+              >
+                <div className={`p-3.5 rounded-2xl shrink-0 ${
+                  agendaView === 'proximos' ? 'bg-white/20 text-white' : 'bg-teal-50 text-teal-600'
+                }`}>
+                  <ListOrdered className="w-6 h-6" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-black tracking-tight">Próximos Turnos</h3>
+                    <span className={`text-xs font-black px-2.5 py-0.5 rounded-full ${
+                      agendaView === 'proximos' ? 'bg-white/25 text-white' : 'bg-teal-50 text-teal-700 border border-teal-200'
+                    }`}>
+                      {appointments.filter(a => a.status !== 'CANCELLED').length} Activos
+                    </span>
+                  </div>
+                  <p className={`text-xs mt-1 leading-relaxed ${
+                    agendaView === 'proximos' ? 'text-teal-100' : 'text-slate-500'
+                  }`}>
+                    Entra aquí para ver el listado de citas programadas, datos de los pacientes y acciones para confirmar o cancelar.
+                  </p>
+                </div>
+              </div>
+
+              {/* TARJETA 2: CALENDARIO & BLOQUEOS */}
+              <div 
+                onClick={() => setAgendaView('calendario')}
+                className={`p-6 rounded-3xl border transition-all cursor-pointer flex items-start gap-4 ${
+                  agendaView === 'calendario'
+                    ? 'bg-gradient-to-br from-teal-600 to-emerald-700 text-white shadow-xl shadow-teal-600/20 border-teal-500 scale-[1.01]'
+                    : 'bg-white text-slate-800 border-slate-200 hover:border-teal-300 hover:shadow-md'
+                }`}
+              >
+                <div className={`p-3.5 rounded-2xl shrink-0 ${
+                  agendaView === 'calendario' ? 'bg-white/20 text-white' : 'bg-teal-50 text-teal-600'
+                }`}>
+                  <CalendarDays className="w-6 h-6" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-black tracking-tight">Calendario & Bloqueos</h3>
+                    <span className={`text-xs font-black px-2.5 py-0.5 rounded-full ${
+                      agendaView === 'calendario' ? 'bg-white/25 text-white' : 'bg-amber-50 text-amber-700 border border-amber-200'
+                    }`}>
+                      {scheduleBlocks.length} Bloqueos
+                    </span>
+                  </div>
+                  <p className={`text-xs mt-1 leading-relaxed ${
+                    agendaView === 'calendario' ? 'text-teal-100' : 'text-slate-500'
+                  }`}>
+                    Vista de calendario mensual con los turnos ocupados y herramientas para bloquear días u horarios a tu antojo.
+                  </p>
+                </div>
+              </div>
+
             </div>
+
+            {/* VISTA 1: TABLA DE PRÓXIMOS TURNOS */}
+            {agendaView === 'proximos' && (
+              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden animate-fade-in">
+                <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+                  <div>
+                    <h3 className="font-bold text-slate-900">Listado Cronológico de Turnos</h3>
+                    <p className="text-xs text-slate-500">Pacientes agendados vía WhatsApp y Portal de Reserva.</p>
+                  </div>
+                  <span className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
+                    Total: {appointments.length}
+                  </span>
+                </div>
+                
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm text-slate-600">
+                    <thead className="bg-slate-50 text-slate-400 font-bold text-[11px] uppercase tracking-wider border-b border-slate-100">
+                      <tr>
+                        <th className="py-3.5 px-6">Fecha / Hora</th>
+                        <th className="py-3.5 px-6">Paciente</th>
+                        <th className="py-3.5 px-6">DNI</th>
+                        <th className="py-3.5 px-6">Teléfono WhatsApp</th>
+                        <th className="py-3.5 px-6">Estado</th>
+                        <th className="py-3.5 px-6 text-right">Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {appointments.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="text-center py-12 text-slate-400 text-xs">
+                            No hay turnos registrados en la agenda.
+                          </td>
+                        </tr>
+                      ) : (
+                        appointments.map((appt) => (
+                          <tr key={appt.id} className="hover:bg-slate-50/80 transition">
+                            <td className="py-4 px-6 font-semibold text-slate-900 whitespace-nowrap">
+                              {appt.date} <span className="text-teal-600 ml-1">{appt.time} hs</span>
+                            </td>
+                            <td className="py-4 px-6 font-medium text-slate-900">{appt.patient?.name || '—'}</td>
+                            <td className="py-4 px-6 font-mono text-xs">{appt.patient?.dni || '—'}</td>
+                            <td className="py-4 px-6 text-xs text-slate-500">{appt.patient?.phone || '—'}</td>
+                            <td className="py-4 px-6">
+                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ${
+                                appt.status === 'CONFIRMED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                                appt.status === 'SCHEDULED' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                                appt.status === 'CANCELLED' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
+                                'bg-slate-100 text-slate-700'
+                              }`}>
+                                {appt.status === 'CONFIRMED' ? 'Confirmado' :
+                                 appt.status === 'SCHEDULED' ? 'Pendiente' :
+                                 appt.status === 'CANCELLED' ? 'Cancelado' : appt.status}
+                              </span>
+                            </td>
+                            <td className="py-4 px-6 text-right space-x-2 whitespace-nowrap">
+                              {appt.status !== 'CONFIRMED' && (
+                                <button
+                                  onClick={() => updateAppointmentStatus(appt.id, 'CONFIRMED')}
+                                  className="px-2.5 py-1 text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg transition"
+                                >
+                                  Confirmar
+                                </button>
+                              )}
+                              {appt.status !== 'CANCELLED' && (
+                                <button
+                                  onClick={() => updateAppointmentStatus(appt.id, 'CANCELLED')}
+                                  className="px-2.5 py-1 text-xs bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-lg transition"
+                                >
+                                  Cancelar
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* VISTA 2: CALENDARIO MENSUAL & GESTIÓN DE BLOQUEOS */}
+            {agendaView === 'calendario' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
+                
+                {/* CALENDARIO MENSUAL INTERACTIVO (COL 1 Y 2) */}
+                <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-6">
+                  
+                  {/* CABECERA DEL CALENDARIO */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                    <div>
+                      <h3 className="text-lg font-black text-slate-900 capitalize">
+                        {monthNames[calMonth]} {calYear}
+                      </h3>
+                      <p className="text-xs text-slate-400">
+                        Selecciona un día para ver turnos agendados y aplicar bloqueos.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={goToday}
+                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition"
+                      >
+                        Hoy
+                      </button>
+                      <button
+                        onClick={prevMonth}
+                        className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition"
+                        title="Mes Anterior"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={nextMonth}
+                        className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition"
+                        title="Mes Siguiente"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* GRID DE DÍAS DE LA SEMANA */}
+                  <div className="grid grid-cols-7 gap-1 text-center font-bold text-xs text-slate-400 uppercase tracking-wider">
+                    {dayLabels.map((lbl, idx) => (
+                      <div key={idx} className="py-1">{lbl}</div>
+                    ))}
+                  </div>
+
+                  {/* GRID DE CELDAS DEL MES */}
+                  <div className="grid grid-cols-7 gap-1.5">
+                    {calendarGrid.map((dayNum, idx) => {
+                      if (!dayNum) {
+                        return <div key={`empty-${idx}`} className="h-20 bg-slate-50/50 rounded-2xl" />;
+                      }
+
+                      const mStr = String(calMonth + 1).padStart(2, '0');
+                      const dStr = String(dayNum).padStart(2, '0');
+                      const dateIso = `${calYear}-${mStr}-${dStr}`;
+
+                      const isSelected = selectedDateStr === dateIso;
+                      const todayIso = new Date().toISOString().split('T')[0];
+                      const isToday = todayIso === dateIso;
+
+                      // Turnos y bloqueos para este día
+                      const dayAppts = appointments.filter(a => a.date === dateIso && a.status !== 'CANCELLED');
+                      const dayBlocks = scheduleBlocks.filter(b => b.date === dateIso);
+                      const fullDayBlock = dayBlocks.find(b => !b.time);
+
+                      return (
+                        <div
+                          key={`day-${dayNum}`}
+                          onClick={() => setSelectedDateStr(dateIso)}
+                          className={`h-20 p-2 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
+                            isSelected 
+                              ? 'bg-teal-50 border-teal-500 shadow-sm ring-2 ring-teal-500/20' 
+                              : isToday 
+                              ? 'bg-emerald-50/40 border-emerald-300 hover:border-teal-400'
+                              : 'bg-white border-slate-100 hover:border-teal-300 hover:bg-slate-50/50'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className={`text-xs font-black ${
+                              isSelected ? 'text-teal-700' : isToday ? 'text-emerald-700' : 'text-slate-800'
+                            }`}>
+                              {dayNum}
+                            </span>
+                            {isToday && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            )}
+                          </div>
+
+                          <div className="space-y-1">
+                            {fullDayBlock ? (
+                              <div className="px-1.5 py-0.5 bg-rose-100 text-rose-700 font-bold text-[9px] rounded-md truncate" title={fullDayBlock.reason || 'Día Bloqueado'}>
+                                ⛔ Bloqueado
+                              </div>
+                            ) : dayBlocks.length > 0 ? (
+                              <div className="px-1.5 py-0.5 bg-amber-100 text-amber-800 font-bold text-[9px] rounded-md truncate">
+                                ⏳ {dayBlocks.length} {dayBlocks.length === 1 ? 'bloqueo' : 'bloqueos'}
+                              </div>
+                            ) : null}
+
+                            {dayAppts.length > 0 && (
+                              <div className="px-1.5 py-0.5 bg-teal-100 text-teal-800 font-bold text-[9px] rounded-md truncate">
+                                📅 {dayAppts.length} {dayAppts.length === 1 ? 'turno' : 'turnos'}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-4 text-[11px] text-slate-500 pt-2 border-t border-slate-100">
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded bg-teal-100 border border-teal-300"></span> Con turnos ocupados
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded bg-rose-100 border border-rose-300"></span> Día bloqueado completo
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded bg-amber-100 border border-amber-300"></span> Horarios específicos bloqueados
+                    </span>
+                  </div>
+
+                </div>
+
+                {/* PANEL LATERAL: GESTIÓN DEL DÍA SELECCIONADO (COL 3) */}
+                <div className="space-y-6">
+                  
+                  {/* DETALLE Y ACCIONES DEL DÍA */}
+                  <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-5">
+                    <div className="border-b border-slate-100 pb-3">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-teal-600 block">
+                        Día Seleccionado
+                      </span>
+                      <h4 className="text-base font-black text-slate-900">
+                        {selectedDateStr}
+                      </h4>
+                    </div>
+
+                    {/* TURNOS DE ESTE DÍA */}
+                    <div>
+                      <h5 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2.5 flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-teal-600" /> Turnos Agendados ({selectedDayAppointments.length})
+                      </h5>
+                      {selectedDayAppointments.length === 0 ? (
+                        <p className="text-xs text-slate-400 bg-slate-50 p-3 rounded-xl border border-dashed border-slate-200 text-center">
+                          No hay citas programadas para este día.
+                        </p>
+                      ) : (
+                        <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                          {selectedDayAppointments.map(a => (
+                            <div key={a.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs flex justify-between items-center">
+                              <div>
+                                <span className="font-bold text-slate-800">{a.time} hs</span> - <span className="text-slate-700">{a.patient?.name}</span>
+                                <span className="block text-[10px] text-slate-400">DNI: {a.patient?.dni}</span>
+                              </div>
+                              <span className={`px-2 py-0.5 text-[9px] font-black rounded uppercase ${
+                                a.status === 'CONFIRMED' ? 'bg-emerald-100 text-emerald-800' :
+                                a.status === 'CANCELLED' ? 'bg-rose-100 text-rose-800' : 'bg-blue-100 text-blue-800'
+                              }`}>
+                                {a.status === 'CONFIRMED' ? 'Conf.' : a.status === 'CANCELLED' ? 'Canc.' : 'Pend.'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* BLOQUEOS ACTIVOS DE ESTE DÍA */}
+                    <div>
+                      <h5 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2.5 flex items-center gap-1.5">
+                        <Ban className="w-3.5 h-3.5 text-rose-500" /> Bloqueos Activos ({selectedDayBlocks.length})
+                      </h5>
+                      {selectedDayBlocks.length === 0 ? (
+                        <p className="text-xs text-slate-400 bg-slate-50 p-3 rounded-xl border border-dashed border-slate-200 text-center">
+                          El día no tiene ningún bloqueo activo.
+                        </p>
+                      ) : (
+                        <div className="space-y-2">
+                          {selectedDayBlocks.map(b => (
+                            <div key={b.id} className="p-2.5 rounded-xl bg-rose-50/60 border border-rose-200 text-xs flex items-center justify-between">
+                              <div>
+                                <span className="font-bold text-rose-900">
+                                  {b.time ? `Horario: ${b.time} hs` : '⛔ Todo el Día'}
+                                </span>
+                                <span className="block text-[10px] text-rose-700/80">{b.reason || 'Sin motivo'}</span>
+                              </div>
+                              <button
+                                onClick={() => handleDeleteBlock(b.id)}
+                                title="Desbloquear / Liberar"
+                                className="p-1.5 text-rose-600 hover:text-white hover:bg-rose-600 rounded-lg transition"
+                              >
+                                <Unlock className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                  </div>
+
+                  {/* FORMULARIO: BLOQUEAR DÍA U HORARIO A SU ANTOJO */}
+                  <form onSubmit={handleCreateBlock} className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-4">
+                    <div>
+                      <h4 className="text-sm font-black text-slate-900 flex items-center gap-1.5">
+                        <Plus className="w-4 h-4 text-teal-600" /> Bloquear Horario o Día
+                      </h4>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        Inhabilita la reserva para que ningún paciente pueda sacar turno en esa franja.
+                      </p>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setBlockType('dia')}
+                        className={`flex-1 py-2 text-xs font-bold rounded-xl border transition ${
+                          blockType === 'dia'
+                            ? 'bg-rose-600 text-white border-rose-600 shadow-sm'
+                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        Día Completo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBlockType('horario')}
+                        className={`flex-1 py-2 text-xs font-bold rounded-xl border transition ${
+                          blockType === 'horario'
+                            ? 'bg-rose-600 text-white border-rose-600 shadow-sm'
+                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        Horario Específico
+                      </button>
+                    </div>
+
+                    {blockType === 'horario' && (
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                          Horario a Bloquear (HH:MM)
+                        </label>
+                        <input 
+                          type="time"
+                          required
+                          value={blockTime}
+                          onChange={e => setBlockTime(e.target.value)}
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-teal-500"
+                        />
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                        Motivo del Bloqueo
+                      </label>
+                      <input 
+                        type="text"
+                        value={blockReason}
+                        onChange={e => setBlockReason(e.target.value)}
+                        placeholder="Ej: Feriado, Vacaciones, Almuerzo, Urgencia"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:ring-2 focus:ring-teal-500"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={blockLoading}
+                      className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs shadow-md transition disabled:opacity-50 flex items-center justify-center gap-1.5"
+                    >
+                      <Ban className="w-3.5 h-3.5" />
+                      {blockLoading ? 'Guardando...' : blockType === 'dia' ? 'Bloquear Todo el Día' : `Bloquear a las ${blockTime} hs`}
+                    </button>
+                  </form>
+
+                </div>
+
+              </div>
+            )}
+
           </div>
         )}
 
@@ -982,9 +1456,9 @@ export default function AdminPanel() {
                   <p className="text-xs text-slate-600 leading-relaxed">
                     💡 <strong>Roles del Sistema:</strong>
                     <br />
-                    • <strong>Administrador (Doctor):</strong> Acceso a la agenda, lista de pacientes, vinculación de WhatsApp y perfil del consultorio (solo lectura).
+                    • <strong>Administrador (Doctor):</strong> Acceso a la agenda, calendario de bloqueos, pacientes, vinculación de WhatsApp y perfil del consultorio (solo lectura).
                     <br />
-                    • <strong>Secretaría (Asistente):</strong> Acceso exclusivo a ver la agenda de turnos y directorio de pacientes. Sin acceso a WhatsApp ni configuraciones.
+                    • <strong>Secretaría (Asistente):</strong> Acceso exclusivo a ver la agenda de turnos y directorio de pacientes.
                   </p>
                 </div>
               </div>
