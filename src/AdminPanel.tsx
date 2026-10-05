@@ -32,7 +32,10 @@ import {
   Ban,
   Plus,
   Unlock,
-  AlertCircle
+  AlertCircle,
+  Search,
+  Mail,
+  User
 } from 'lucide-react';
 
 export default function AdminPanel() {
@@ -84,6 +87,18 @@ export default function AdminPanel() {
   const [blockTime, setBlockTime] = useState('14:00');
   const [blockReason, setBlockReason] = useState('Feriado / Sin atención');
   const [blockLoading, setBlockLoading] = useState(false);
+
+  // Estado de Gestión Manual de Pacientes (Todos los Roles)
+  const [patientModal, setPatientModal] = useState<{ open: boolean; isEdit: boolean; id?: string }>({ open: false, isEdit: false });
+  const [patientForm, setPatientForm] = useState({
+    dni: '',
+    name: '',
+    phone: '',
+    healthInsurance: 'Particular',
+    email: ''
+  });
+  const [patientSearch, setPatientSearch] = useState('');
+  const [patientSubmitting, setPatientSubmitting] = useState(false);
 
   // SuperAdmin: Gestión de Usuarios
   const [systemUsers, setSystemUsers] = useState<any[]>([]);
@@ -271,6 +286,74 @@ export default function AdminPanel() {
         setTimeout(() => setFeedback(''), 3500);
       }
     } catch (e) {}
+  };
+
+  // -------------------------------------------------------------
+  // GESTIÓN DE PACIENTES (TODOS LOS ROLES)
+  // -------------------------------------------------------------
+  const openCreatePatient = () => {
+    setPatientForm({
+      dni: '',
+      name: '',
+      phone: '',
+      healthInsurance: 'Particular',
+      email: ''
+    });
+    setPatientModal({ open: true, isEdit: false });
+  };
+
+  const openEditPatient = (pat: any) => {
+    setPatientForm({
+      dni: pat.dni || '',
+      name: pat.name || '',
+      phone: pat.phone || '',
+      healthInsurance: pat.healthInsurance || 'Particular',
+      email: pat.email || ''
+    });
+    setPatientModal({ open: true, isEdit: true, id: pat.id });
+  };
+
+  const handleSavePatient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPatientSubmitting(true);
+    try {
+      const url = patientModal.isEdit ? `/api/admin/patients/${patientModal.id}` : '/api/admin/patients';
+      const method = patientModal.isEdit ? 'PATCH' : 'POST';
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patientForm)
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        await loadAgenda();
+        setPatientModal({ open: false, isEdit: false });
+        setFeedback(patientModal.isEdit ? '¡Datos del paciente actualizados con éxito!' : '¡Paciente registrado con éxito!');
+        setTimeout(() => setFeedback(''), 3500);
+      } else {
+        alert(data.error || 'Ocurrió un error al guardar el paciente.');
+      }
+    } catch (err) {
+      alert('Error de conexión con el servidor.');
+    } finally {
+      setPatientSubmitting(false);
+    }
+  };
+
+  const handleDeletePatient = async (id: string, name: string) => {
+    if (!confirm(`¿Estás seguro de eliminar al paciente "${name}"? Se eliminarán también sus turnos asociados.`)) return;
+
+    try {
+      const res = await fetch(`/api/admin/patients/${id}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        await loadAgenda();
+        setFeedback('Paciente eliminado correctamente de la base de datos.');
+        setTimeout(() => setFeedback(''), 3500);
+      }
+    } catch (err) {}
   };
 
   // Guardar datos de la clínica (Exclusivo SuperAdmin)
@@ -477,6 +560,16 @@ export default function AdminPanel() {
   const selectedDayAppointments = appointments.filter(a => a.date === selectedDateStr);
   const selectedDayBlocks = scheduleBlocks.filter(b => b.date === selectedDateStr);
 
+  // Filtrado de Pacientes en tiempo real
+  const filteredPatients = patients.filter(p => {
+    if (!patientSearch.trim()) return true;
+    const q = patientSearch.toLowerCase();
+    return (p.name && p.name.toLowerCase().includes(q)) ||
+           (p.dni && p.dni.includes(q)) ||
+           (p.phone && p.phone.includes(q)) ||
+           (p.healthInsurance && p.healthInsurance.toLowerCase().includes(q));
+  });
+
   // ---------------------------------------------------------------------------
   // 1. PANTALLA DE LOGIN (SI NO ESTÁ AUTENTICADO)
   // ---------------------------------------------------------------------------
@@ -676,7 +769,7 @@ export default function AdminPanel() {
           <div>
             <h2 className="text-2xl font-black text-slate-900">
               {activeTab === 'agenda' && 'Gestión de Turnos y Agenda'}
-              {activeTab === 'pacientes' && 'Base de Pacientes Registrados'}
+              {activeTab === 'pacientes' && 'Directorio de Pacientes'}
               {activeTab === 'whatsapp' && 'Conexión y Estado de WhatsApp'}
               {activeTab === 'perfil_clinica' && 'Información de Mi Consultorio'}
               {activeTab === 'configuracion' && 'Panel de Control SuperAdmin (Gestión & Venta)'}
@@ -1132,46 +1225,97 @@ export default function AdminPanel() {
           </div>
         )}
 
-        {/* 2. TAB: PACIENTES */}
+        {/* 2. TAB: PACIENTES (GESTIÓN COMPLETA: CREAR MANUAL, EDITAR, ELIMINAR, BUSCAR) */}
         {activeTab === 'pacientes' && (
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-              <h3 className="font-bold text-slate-900">Directorio de Pacientes</h3>
-              <span className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
-                Total: {patients.length}
-              </span>
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden space-y-4">
+            
+            {/* CABECERA CON BÚSQUEDA Y BOTÓN NUEVO PACIENTE */}
+            <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <h3 className="font-bold text-slate-900 text-lg flex items-center gap-2">
+                  <Users className="w-5 h-5 text-teal-600" /> Directorio de Pacientes
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Base de datos de historias y contacto. Añade o actualiza la ficha del paciente manualmente.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                {/* BUSCADOR EN VIVO */}
+                <div className="relative flex-1 sm:w-64">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={patientSearch}
+                    onChange={e => setPatientSearch(e.target.value)}
+                    placeholder="Buscar por DNI, nombre..."
+                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 outline-none focus:ring-2 focus:ring-teal-500"
+                  />
+                </div>
+
+                {/* BOTÓN AÑADIR PACIENTE (DISPONIBLE EN TODOS LOS ROLES) */}
+                <button
+                  onClick={openCreatePatient}
+                  className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-xs shadow-md transition flex items-center gap-1.5 shrink-0"
+                >
+                  <UserPlus className="w-4 h-4" /> Añadir Paciente
+                </button>
+              </div>
             </div>
+
+            {/* TABLA DE PACIENTES */}
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm text-slate-600">
                 <thead className="bg-slate-50 text-slate-400 font-bold text-[11px] uppercase tracking-wider border-b border-slate-100">
                   <tr>
                     <th className="py-3.5 px-6">DNI</th>
-                    <th className="py-3.5 px-6">Nombre Completo</th>
+                    <th className="py-3.5 px-6">Nombre y Apellido</th>
                     <th className="py-3.5 px-6">WhatsApp / Teléfono</th>
                     <th className="py-3.5 px-6">Obra Social</th>
-                    <th className="py-3.5 px-6">Turnos Registrados</th>
+                    <th className="py-3.5 px-6">Email</th>
+                    <th className="py-3.5 px-6">Turnos</th>
+                    <th className="py-3.5 px-6 text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {patients.length === 0 ? (
+                  {filteredPatients.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="text-center py-12 text-slate-400 text-xs">
-                        No hay pacientes registrados aún en la base de datos.
+                      <td colSpan={7} className="text-center py-12 text-slate-400 text-xs">
+                        {patientSearch.trim() 
+                          ? `No se encontraron pacientes que coincidan con "${patientSearch}".`
+                          : 'No hay pacientes registrados aún en la base de datos.'}
                       </td>
                     </tr>
                   ) : (
-                    patients.map((pat) => (
+                    filteredPatients.map((pat) => (
                       <tr key={pat.id} className="hover:bg-slate-50/80 transition">
                         <td className="py-4 px-6 font-mono text-xs font-bold text-slate-900">{pat.dni}</td>
                         <td className="py-4 px-6 font-medium text-slate-900">{pat.name}</td>
-                        <td className="py-4 px-6 text-xs text-slate-600">{pat.phone}</td>
+                        <td className="py-4 px-6 text-xs text-slate-600 font-mono">{pat.phone}</td>
                         <td className="py-4 px-6 text-xs">
-                          <span className="px-2 py-0.5 bg-slate-100 text-slate-700 font-semibold rounded-md uppercase text-[10px]">
+                          <span className="px-2.5 py-1 bg-slate-100 text-slate-700 font-semibold rounded-lg uppercase text-[10px]">
                             {pat.healthInsurance || 'Particular'}
                           </span>
                         </td>
+                        <td className="py-4 px-6 text-xs text-slate-500">{pat.email || '—'}</td>
                         <td className="py-4 px-6 text-xs font-bold text-teal-600">
                           {pat.appointments?.length || 0} turnos
+                        </td>
+                        <td className="py-4 px-6 text-right space-x-1.5 whitespace-nowrap">
+                          <button
+                            onClick={() => openEditPatient(pat)}
+                            title="Editar Datos del Paciente"
+                            className="p-1.5 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeletePatient(pat.id, pat.name)}
+                            title="Eliminar Paciente"
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </td>
                       </tr>
                     ))
@@ -1179,6 +1323,12 @@ export default function AdminPanel() {
                 </tbody>
               </table>
             </div>
+
+            <div className="p-4 bg-slate-50/80 border-t border-slate-100 flex justify-between items-center text-xs text-slate-500 px-6">
+              <span>Mostrando {filteredPatients.length} de {patients.length} pacientes</span>
+              <span className="text-[11px] text-slate-400">Identificador unívoco del sistema: <strong>DNI</strong></span>
+            </div>
+
           </div>
         )}
 
@@ -1718,6 +1868,119 @@ export default function AdminPanel() {
         )}
 
       </main>
+
+      {/* MODAL: CREAR / EDITAR PACIENTE (DISPONIBLE PARA TODOS LOS ROLES) */}
+      {patientModal.open && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-white rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-100 animate-fade-in">
+            <h3 className="text-lg font-black text-slate-900 mb-1 flex items-center gap-2">
+              <User className="w-5 h-5 text-teal-600" /> 
+              {patientModal.isEdit ? 'Editar Información del Paciente' : 'Añadir Nuevo Paciente'}
+            </h3>
+            <p className="text-xs text-slate-500 mb-6">
+              {patientModal.isEdit 
+                ? 'Modifica los datos personales y de contacto del paciente.' 
+                : 'Completa los mismos datos requeridos en el portal de reserva para registrar al paciente.'}
+            </p>
+
+            <form onSubmit={handleSavePatient} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                
+                {/* 1. NOMBRE Y APELLIDO */}
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                    Nombre y Apellido *
+                  </label>
+                  <input 
+                    type="text"
+                    required
+                    placeholder="Ej: Juan Pérez"
+                    value={patientForm.name}
+                    onChange={e => setPatientForm({ ...patientForm, name: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-teal-500"
+                  />
+                </div>
+
+                {/* 2. DNI */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                    DNI / Documento *
+                  </label>
+                  <input 
+                    type="text"
+                    required
+                    placeholder="Ej: 35123456"
+                    value={patientForm.dni}
+                    onChange={e => setPatientForm({ ...patientForm, dni: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-mono outline-none focus:ring-2 focus:ring-teal-500"
+                  />
+                </div>
+
+                {/* 3. TELÉFONO DE WHATSAPP */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                    WhatsApp para Recordatorios *
+                  </label>
+                  <input 
+                    type="tel"
+                    required
+                    placeholder="Ej: +54 9 11 1234-5678"
+                    value={patientForm.phone}
+                    onChange={e => setPatientForm({ ...patientForm, phone: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-mono outline-none focus:ring-2 focus:ring-teal-500"
+                  />
+                </div>
+
+                {/* 4. OBRA SOCIAL / PREPAGA */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                    Obra Social / Prepaga
+                  </label>
+                  <input 
+                    type="text"
+                    placeholder="Ej: OSDE, Swiss Medical, Particular"
+                    value={patientForm.healthInsurance}
+                    onChange={e => setPatientForm({ ...patientForm, healthInsurance: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-teal-500"
+                  />
+                </div>
+
+                {/* 5. EMAIL (OPCIONAL) */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                    Correo Electrónico (Opcional)
+                  </label>
+                  <input 
+                    type="email"
+                    placeholder="paciente@correo.com"
+                    value={patientForm.email}
+                    onChange={e => setPatientForm({ ...patientForm, email: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-teal-500"
+                  />
+                </div>
+
+              </div>
+
+              <div className="pt-4 flex justify-end gap-2.5 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setPatientModal({ open: false, isEdit: false })}
+                  className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={patientSubmitting}
+                  className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-md transition disabled:opacity-50"
+                >
+                  {patientSubmitting ? 'Guardando...' : patientModal.isEdit ? 'Actualizar Paciente' : 'Guardar Paciente'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* MODAL: CREAR NUEVO USUARIO (SUPERADMIN) */}
       {newUserModal && (

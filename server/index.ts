@@ -672,6 +672,88 @@ app.delete('/api/admin/schedule-blocks/:id', async (req, res) => {
   }
 });
 
+// -------------------------------------------------------------
+// Endpoints de Gestión Manual de Pacientes (Todos los Roles)
+// -------------------------------------------------------------
+
+// Crear Paciente Manualmente
+app.post('/api/admin/patients', async (req, res) => {
+  try {
+    const { dni, name, phone, healthInsurance, email } = req.body;
+    if (!dni || !name || !phone) {
+      return res.status(400).json({ error: 'DNI, Nombre y Número de WhatsApp son obligatorios.' });
+    }
+
+    const cleanDni = dni.trim();
+    const existing = await prisma.patient.findUnique({ where: { dni: cleanDni } });
+    if (existing) {
+      return res.status(400).json({ error: `Ya existe un paciente registrado con el DNI ${cleanDni}.` });
+    }
+
+    const patient = await prisma.patient.create({
+      data: {
+        dni: cleanDni,
+        name: name.trim(),
+        phone: phone.trim(),
+        healthInsurance: healthInsurance?.trim() || 'Particular',
+        email: email?.trim() || null
+      }
+    });
+
+    res.json({ success: true, patient });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Editar Paciente
+app.patch('/api/admin/patients/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { dni, name, phone, healthInsurance, email } = req.body;
+
+    const current = await prisma.patient.findUnique({ where: { id } });
+    if (!current) {
+      return res.status(404).json({ error: 'Paciente no encontrado.' });
+    }
+
+    const data: any = {};
+    if (name) data.name = name.trim();
+    if (phone) data.phone = phone.trim();
+    if (healthInsurance !== undefined) data.healthInsurance = healthInsurance.trim() || 'Particular';
+    if (email !== undefined) data.email = email ? email.trim() : null;
+
+    if (dni && dni.trim() !== current.dni) {
+      const cleanDni = dni.trim();
+      const existing = await prisma.patient.findUnique({ where: { dni: cleanDni } });
+      if (existing && existing.id !== id) {
+        return res.status(400).json({ error: `El DNI ${cleanDni} ya pertenece a otro paciente.` });
+      }
+      data.dni = cleanDni;
+    }
+
+    const updated = await prisma.patient.update({
+      where: { id },
+      data
+    });
+
+    res.json({ success: true, patient: updated });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Eliminar Paciente
+app.delete('/api/admin/patients/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.patient.delete({ where: { id } });
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Guardar Configuración de la Clínica & Recordatorios (Exclusivo SuperAdmin)
 app.post('/api/admin/clinic-config', async (req, res) => {
   try {
