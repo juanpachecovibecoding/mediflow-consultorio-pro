@@ -512,9 +512,15 @@ app.delete('/api/admin/schedule-blocks/:id', async (req, res) => {
   }
 });
 
-// Guardar Configuración de la Clínica & Recordatorios (Doctor)
+// Guardar Configuración de la Clínica & Recordatorios (Exclusivo SuperAdmin)
 app.post('/api/admin/clinic-config', async (req, res) => {
   try {
+    const pin = req.headers['x-admin-pin'];
+    const config = await prisma.systemConfig.findFirst();
+    if (config && pin !== config.superAdminPin) {
+      return res.status(401).json({ error: 'PIN de SuperAdmin no autorizado para modificar datos de la clínica.' });
+    }
+
     let clinic = await prisma.clinicConfig.findFirst();
     if (!clinic) clinic = await prisma.clinicConfig.create({ data: {} });
 
