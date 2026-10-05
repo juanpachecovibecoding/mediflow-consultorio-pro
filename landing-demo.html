@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Consultorio Odontológico Dr. Juan Pérez | Atención Odontológica</title>
+  <meta name="description" content="Cuidado odontológico moderno, cercano y sin esperas. Reserva tu turno de forma ágil con nuestro asistente vía WhatsApp.">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230d9488' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3'/%3E%3Cpath d='M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4'/%3E%3Ccircle cx='20' cy='10' r='2'/%3E%3C/svg%3E">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    html {
+      scroll-behavior: smooth;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-teal-500 selection:text-white antialiased">
+
+  <!-- 1. TOP BAR -->
+  <header class="bg-slate-900 text-slate-300 text-xs py-2.5 px-4 sm:px-8 border-b border-slate-800">
+    <div class="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-2">
+      <div class="flex items-center gap-6">
+        <span class="flex items-center gap-1.5">
+          <!-- MapPin Icon -->
+          <svg class="w-3.5 h-3.5 text-teal-400 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
+          Av. Corrientes 1234, Piso 2, Buenos Aires
+        </span>
+        <span class="hidden md:flex items-center gap-1.5">
+          <!-- Clock Icon -->
+          <svg class="w-3.5 h-3.5 text-teal-400 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Lunes a Viernes de 09:00 a 19:00 hs
+        </span>
+      </div>
+      <div class="flex items-center gap-4 font-medium text-slate-300">
+        <span class="flex items-center gap-1.5 text-slate-300">
+          <!-- Phone Icon -->
+          <svg class="w-3.5 h-3.5 text-teal-400 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          +54 9 11 5566-7788
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <!-- 2. NAVBAR -->
+  <nav class="bg-white/90 backdrop-blur-md sticky top-0 z-40 border-b border-slate-100 shadow-sm">
+    <div class="max-w-6xl mx-auto px-4 sm:px-8 h-20 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-teal-500 to-emerald-600 flex items-center justify-center text-white shadow-lg shadow-teal-500/20">
+          <!-- Stethoscope Icon -->
+          <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></svg>
+        </div>
+        <div>
+          <h1 class="text-lg font-black tracking-tight text-slate-900 leading-tight">Consultorio Dr. Juan Pérez</h1>
+          <p class="text-xs font-semibold text-teal-700">Odontología Integral & Estética Dental</p>
+        </div>
+      </div>
+
+      <a 
+        href="https://wa.me/5491155667788?text=Hola!%20Quería%20consultar%20para%20agendar%20un%20turno."
+        target="_blank"
+        rel="noopener noreferrer"
+        class="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md shadow-emerald-600/20 transition-all hover:scale-[1.02] text-sm"
+      >
+        <!-- MessageCircle Icon -->
+        <svg class="w-4 h-4 fill-white" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+        <span>Pedir Turno por WhatsApp</span>
+      </a>
+    </div>
+  </nav>
+
+  <!-- 3. HERO SECTION -->
+  <section class="py-16 md:py-24 px-4 sm:px-8 relative overflow-hidden bg-gradient-to-b from-white to-slate-50">
+    <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+      
+      <div class="lg:col-span-7 space-y-6 text-center lg:text-left">
+        <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-teal-50 border border-teal-200 text-teal-800 text-xs font-bold tracking-wide">
+          <!-- Sparkles Icon -->
+          <svg class="w-4 h-4 text-teal-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>
+          Atención personalizada con Asistente 24/7
+        </div>
+
+        <h2 class="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-[1.1]">
+          Tu sonrisa en las mejores manos con el <span class="text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-emerald-600">Dr. Juan Pérez</span>
+        </h2>
+
+        <p class="text-base sm:text-lg text-slate-600 max-w-xl mx-auto lg:mx-0 leading-relaxed">
+          Cuidado odontológico moderno, cercano y sin esperas. Consultá con nuestro asistente por WhatsApp y recibí tu enlace exclusivo para reservar el horario que mejor te convenga.
+        </p>
+
+        <div class="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start pt-2">
+          <a 
+            href="https://wa.me/5491155667788?text=Hola!%20Quería%20consultar%20para%20agendar%20un%20turno."
+            target="_blank" 
+            rel="noopener noreferrer"
+            class="w-full sm:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl shadow-xl shadow-emerald-600/25 transition-all hover:scale-105 text-base"
+          >
+            <!-- WhatsApp Icon -->
+            <svg class="w-5 h-5 fill-white" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+            Agendar Turno por WhatsApp
+            <!-- ArrowRight Icon -->
+            <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </a>
+        </div>
+
+        <div class="pt-4 flex items-center justify-center lg:justify-start gap-8 text-xs font-bold text-slate-500 uppercase tracking-wider">
+          <div class="flex items-center gap-2">
+            <!-- CheckCircle2 Icon -->
+            <svg class="w-4 h-4 text-emerald-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>
+            Confirmación Inmediata
+          </div>
+          <div class="flex items-center gap-2">
+            <!-- CheckCircle2 Icon -->
+            <svg class="w-4 h-4 text-emerald-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>
+            Recordatorio 24h
+          </div>
+        </div>
+      </div>
+
+      <!-- Feature Card WhatsApp -->
+      <div class="lg:col-span-5 flex justify-center">
+        <div class="w-full max-w-md bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-2xl shadow-slate-200/50 space-y-6 relative">
+          <div class="w-14 h-14 rounded-2xl bg-teal-50 flex items-center justify-center text-teal-600 font-bold">
+            <!-- Award Icon -->
+            <svg class="w-8 h-8" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>
+          </div>
+          <div>
+            <h3 class="text-2xl font-black text-slate-900 mb-2">Reserva Simple por WhatsApp</h3>
+            <p class="text-sm text-slate-600 leading-relaxed">
+              Evitá llamadas telefónicas y esperas innecesarias. Nuestro asistente de WhatsApp te solicitará tu DNI y te entregará tu acceso exclusivo a la agenda al instante.
+            </p>
+          </div>
+
+          <div class="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
+            <div class="flex items-center gap-3 text-xs font-semibold text-slate-700">
+              <div class="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-[10px]">1</div>
+              <span>Envías un mensaje por WhatsApp</span>
+            </div>
+            <div class="flex items-center gap-3 text-xs font-semibold text-slate-700">
+              <div class="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-[10px]">2</div>
+              <span>El sistema verifica tu DNI y te da un link para agendarte el horario mas conveniente</span>
+            </div>
+            <div class="flex items-center gap-3 text-xs font-semibold text-slate-700">
+              <div class="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-[10px]">3</div>
+              <span>Eliges tu turno y queda confirmado</span>
+            </div>
+          </div>
+
+          <a 
+            href="https://wa.me/5491155667788?text=Hola!%20Quería%20consultar%20para%20agendar%20un%20turno." 
+            target="_blank" 
+            rel="noopener noreferrer"
+            class="block text-center w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-sm transition"
+          >
+            Comenzar Consulta
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- 4. TRATAMIENTOS / SERVICIOS -->
+  <section class="py-20 px-4 sm:px-8 max-w-6xl mx-auto">
+    <div class="text-center max-w-2xl mx-auto mb-14">
+      <h3 class="text-3xl font-black text-slate-900 tracking-tight">Tratamientos y Servicios</h3>
+      <p class="text-sm text-slate-500 mt-2">Tecnología de avanzada y atención profesional enfocada en tu bienestar</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <!-- Service 1 -->
+      <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-lg shadow-slate-100/50 hover:border-teal-300 transition-all">
+        <div class="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center font-bold mb-4">
+          <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+        </div>
+        <h4 class="font-bold text-slate-900 text-lg mb-1">Consulta y Diagnóstico</h4>
+        <p class="text-xs text-teal-700 font-semibold mb-3">Duración aprox: 30 min</p>
+        <p class="text-xs text-slate-600 leading-relaxed mb-6">Evaluación odontológica completa con cámara intraoral.</p>
+        <a 
+          href="https://wa.me/5491155667788?text=Hola!%20Quería%20consultar%20por%20Consulta%20y%20Diagnóstico."
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-xs font-bold text-emerald-700 flex items-center gap-1 hover:underline"
+        >
+          Consultar por este servicio
+          <svg class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </a>
+      </div>
+
+      <!-- Service 2 -->
+      <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-lg shadow-slate-100/50 hover:border-teal-300 transition-all">
+        <div class="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center font-bold mb-4">
+          <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+        </div>
+        <h4 class="font-bold text-slate-900 text-lg mb-1">Limpieza y Profilaxis</h4>
+        <p class="text-xs text-teal-700 font-semibold mb-3">Duración aprox: 45 min</p>
+        <p class="text-xs text-slate-600 leading-relaxed mb-6">Eliminación de sarro, manchas y pulido coronario con ultrasonido.</p>
+        <a 
+          href="https://wa.me/5491155667788?text=Hola!%20Quería%20consultar%20por%20Limpieza%20y%20Profilaxis."
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-xs font-bold text-emerald-700 flex items-center gap-1 hover:underline"
+        >
+          Consultar por este servicio
+          <svg class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </a>
+      </div>
+
+      <!-- Service 3 -->
+      <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-lg shadow-slate-100/50 hover:border-teal-300 transition-all">
+        <div class="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center font-bold mb-4">
+          <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+        </div>
+        <h4 class="font-bold text-slate-900 text-lg mb-1">Blanqueamiento Dental</h4>
+        <p class="text-xs text-teal-700 font-semibold mb-3">Duración aprox: 45 min</p>
+        <p class="text-xs text-slate-600 leading-relaxed mb-6">Tecnología de última generación para una sonrisa radiante.</p>
+        <a 
+          href="https://wa.me/5491155667788?text=Hola!%20Quería%20consultar%20por%20Blanqueamiento%20Dental."
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-xs font-bold text-emerald-700 flex items-center gap-1 hover:underline"
+        >
+          Consultar por este servicio
+          <svg class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </a>
+      </div>
+
+      <!-- Service 4 -->
+      <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-lg shadow-slate-100/50 hover:border-teal-300 transition-all">
+        <div class="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center font-bold mb-4">
+          <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+        </div>
+        <h4 class="font-bold text-slate-900 text-lg mb-1">Urgencia / Alivio del Dolor</h4>
+        <p class="text-xs text-teal-700 font-semibold mb-3">Duración aprox: 30 min</p>
+        <p class="text-xs text-slate-600 leading-relaxed mb-6">Atención prioritaria para dolores agudos y traumatismos.</p>
+        <a 
+          href="https://wa.me/5491155667788?text=Hola!%20Quería%20consultar%20por%20Urgencia%20/%20Alivio%20del%20Dolor."
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-xs font-bold text-emerald-700 flex items-center gap-1 hover:underline"
+        >
+          Consultar por este servicio
+          <svg class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. OBRAS SOCIALES -->
+  <section class="py-12 bg-white border-y border-slate-100 px-4 sm:px-8">
+    <div class="max-w-6xl mx-auto text-center">
+      <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Obras Sociales y Prepagas Aceptadas</p>
+      <div class="flex flex-wrap justify-center items-center gap-3">
+        <span class="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700">OSDE</span>
+        <span class="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700">Swiss Medical</span>
+        <span class="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700">Galeno</span>
+        <span class="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700">Particular</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. UBICACIÓN Y CONTACTO CON GOOGLE MAPS -->
+  <section id="ubicacion" class="py-20 px-4 sm:px-8 max-w-6xl mx-auto">
+    <div class="bg-slate-900 text-white rounded-[2.5rem] p-8 md:p-12 shadow-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-12 gap-8 items-center border border-slate-800">
+      
+      <div class="lg:col-span-5 space-y-6">
+        <span class="px-3 py-1 rounded-full bg-teal-500/20 text-teal-300 text-xs font-bold uppercase tracking-wider">
+          Encontranos
+        </span>
+        <h3 class="text-3xl font-black tracking-tight">Atención en Buenos Aires</h3>
+        <p class="text-slate-300 text-sm leading-relaxed">
+          Instalaciones confortables y de fácil acceso, diseñadas para que tu visita sea puntual, cómoda y segura.
+        </p>
+
+        <div class="space-y-4 pt-2">
+          <div class="flex items-start gap-3 text-sm">
+            <svg class="w-5 h-5 text-teal-400 shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
+            <div>
+              <span class="font-bold text-white block">Dirección</span>
+              <span class="text-slate-300">Av. Corrientes 1234, Piso 2, Buenos Aires</span>
+            </div>
+          </div>
+          <div class="flex items-start gap-3 text-sm">
+            <svg class="w-5 h-5 text-teal-400 shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <div>
+              <span class="font-bold text-white block">Horarios de Atención</span>
+              <span class="text-slate-300">Lunes a Viernes de 09:00 a 19:00 hs</span>
+            </div>
+          </div>
+          <div class="flex items-start gap-3 text-sm">
+            <svg class="w-5 h-5 text-teal-400 shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            <div>
+              <span class="font-bold text-white block">Teléfono de Contacto</span>
+              <span class="text-slate-300">+54 9 11 5566-7788</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-2 flex flex-col sm:flex-row gap-3">
+          <a 
+            href="https://www.google.com/maps/search/?api=1&query=Av.%20Corrientes%201234%2C%20Piso%202%2C%20Buenos%20Aires"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center justify-center gap-2 px-5 py-3.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs transition border border-slate-700"
+          >
+            <svg class="w-4 h-4 text-teal-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+            Cómo llegar (Google Maps)
+            <svg class="w-3.5 h-3.5 text-slate-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+          </a>
+
+          <a 
+            href="https://wa.me/5491155667788?text=Hola!%20Quería%20consultar%20para%20agendar%20un%20turno."
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-xs transition shadow-lg shadow-emerald-500/20"
+          >
+            <svg class="w-4 h-4 fill-slate-950" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+            WhatsApp
+          </a>
+        </div>
+      </div>
+
+      <!-- MAPA DE GOOGLE INTERACTIVO -->
+      <div class="lg:col-span-7 h-[360px] sm:h-[420px] rounded-3xl overflow-hidden border border-slate-700 shadow-xl bg-slate-800 relative">
+        <iframe
+          title="Mapa de ubicación del Consultorio"
+          width="100%"
+          height="100%"
+          style="border: 0; filter: contrast(1.05);"
+          loading="lazy"
+          allowfullscreen
+          referrerpolicy="no-referrer-when-downgrade"
+          src="https://maps.google.com/maps?q=Av.%20Corrientes%201234%2C%20Piso%202%2C%20Buenos%20Aires&t=&z=15&ie=UTF8&iwloc=&output=embed"
+        ></iframe>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- 7. FOOTER -->
+  <footer class="py-8 text-center text-xs text-slate-400 border-t border-slate-100">
+    <p>© <span id="currentYear"></span> Consultorio Dr. Juan Pérez. Todos los derechos reservados.</p>
+  </footer>
+
+  <!-- BOTÓN FLOTANTE DE WHATSAPP -->
+  <a 
+    href="https://wa.me/5491155667788?text=Hola!%20Quería%20consultar%20para%20agendar%20un%20turno."
+    target="_blank"
+    rel="noopener noreferrer"
+    aria-label="Contactar por WhatsApp"
+    class="fixed bottom-6 right-6 z-50 w-16 h-16 rounded-full bg-emerald-500 hover:bg-emerald-400 text-white flex items-center justify-center shadow-2xl shadow-emerald-500/40 transition-all hover:scale-110"
+  >
+    <svg class="w-8 h-8 fill-white" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+  </a>
+
+  <script>
+    document.getElementById('currentYear').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
