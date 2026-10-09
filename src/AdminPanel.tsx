@@ -967,22 +967,153 @@ export default function AdminPanel() {
                   </button>
                 </div>
 
-                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-                  <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+                {/* CALENDARIO INTERACTIVO DE FECHAS PARA LISTADO CRONOLÓGICO */}
+                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
                     <div>
-                      <h3 className="font-bold text-slate-900">Listado Cronológico de Turnos</h3>
-                      <p className="text-xs text-slate-500">Pacientes agendados vía WhatsApp y Portal de Reserva.</p>
+                      <h4 className="font-black text-slate-900 text-base flex items-center gap-2">
+                        <Calendar className="w-5 h-5 text-teal-600" />
+                        Calendario de Fechas - {monthNames[calMonth]} {calYear}
+                      </h4>
+                      <p className="text-xs text-slate-400">
+                        Haz clic en cualquier día para cargar inmediatamente los turnos agendados en esa fecha.
+                      </p>
                     </div>
-                    <span className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
-                      Total: {appointments.length}
-                    </span>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={goToday}
+                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition"
+                      >
+                        Hoy
+                      </button>
+                      <button
+                        onClick={prevMonth}
+                        className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition"
+                        title="Mes Anterior"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={nextMonth}
+                        className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition"
+                        title="Mes Siguiente"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* GRID DÍAS DE LA SEMANA */}
+                  <div className="grid grid-cols-7 gap-1 text-center font-bold text-xs text-slate-400 uppercase tracking-wider">
+                    {dayLabels.map((lbl, idx) => (
+                      <div key={idx} className="py-1">{lbl}</div>
+                    ))}
+                  </div>
+
+                  {/* GRID DE CELDAS CON TURNOS */}
+                  <div className="grid grid-cols-7 gap-1.5">
+                    {calendarGrid.map((dayNum, idx) => {
+                      if (!dayNum) {
+                        return <div key={`empty-list-${idx}`} className="h-16 sm:h-20 bg-slate-50/40 rounded-2xl" />;
+                      }
+
+                      const mStr = String(calMonth + 1).padStart(2, '0');
+                      const dStr = String(dayNum).padStart(2, '0');
+                      const dateIso = `${calYear}-${mStr}-${dStr}`;
+
+                      const isSelected = selectedDateStr === dateIso;
+                      const todayIso = new Date().toISOString().split('T')[0];
+                      const isToday = todayIso === dateIso;
+
+                      const dayAppts = appointments.filter(a => a.date === dateIso);
+                      const activeDayAppts = dayAppts.filter(a => a.status !== 'CANCELLED');
+                      const dayBlocks = scheduleBlocks.filter(b => b.date === dateIso);
+                      const fullDayBlock = dayBlocks.find(b => !b.time);
+
+                      return (
+                        <div
+                          key={`list-day-${dayNum}`}
+                          onClick={() => setSelectedDateStr(dateIso)}
+                          className={`h-16 sm:h-20 p-2 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
+                            isSelected 
+                              ? 'bg-teal-600 text-white border-teal-600 shadow-md ring-2 ring-teal-500/20 scale-[1.02]' 
+                              : isToday 
+                              ? 'bg-emerald-50/50 border-emerald-300 hover:border-teal-400'
+                              : 'bg-white border-slate-100 hover:border-teal-300 hover:bg-slate-50/60'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className={`text-xs font-black ${
+                              isSelected ? 'text-white' : isToday ? 'text-emerald-700' : 'text-slate-800'
+                            }`}>
+                              {dayNum}
+                            </span>
+                            {isToday && (
+                              <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-emerald-500'}`}></span>
+                            )}
+                          </div>
+
+                          <div className="space-y-0.5">
+                            {fullDayBlock ? (
+                              <div className={`px-1 py-0.2 rounded text-[8px] sm:text-[9px] font-black truncate ${
+                                isSelected ? 'bg-white/20 text-white' : 'bg-rose-100 text-rose-700'
+                              }`}>
+                                ⛔ Bloqueado
+                              </div>
+                            ) : null}
+
+                            {activeDayAppts.length > 0 ? (
+                              <div className={`px-1 py-0.2 rounded text-[8px] sm:text-[9px] font-black truncate ${
+                                isSelected ? 'bg-white/25 text-white' : 'bg-teal-100 text-teal-800'
+                              }`}>
+                                📅 {activeDayAppts.length} {activeDayAppts.length === 1 ? 'turno' : 'turnos'}
+                              </div>
+                            ) : (
+                              <span className={`text-[8px] sm:text-[9px] block truncate ${
+                                isSelected ? 'text-teal-100' : 'text-slate-300'
+                              }`}>
+                                Sin turnos
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* TABLA DE TURNOS DEL DÍA SELECCIONADO */}
+                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-black text-slate-900 text-lg">
+                          Turnos del {selectedDateStr}
+                        </h3>
+                        {selectedDateStr === new Date().toISOString().split('T')[0] && (
+                          <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase">
+                            Hoy
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Mostrando únicamente los turnos agendados para la fecha seleccionada en el calendario superior.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-xl">
+                        {appointments.filter(a => a.date === selectedDateStr).length} Turnos en esta fecha
+                      </span>
+                    </div>
                   </div>
                 
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm text-slate-600">
                     <thead className="bg-slate-50 text-slate-400 font-bold text-[11px] uppercase tracking-wider border-b border-slate-100">
                       <tr>
-                        <th className="py-3.5 px-6">Fecha / Hora</th>
+                        <th className="py-3.5 px-6">Hora</th>
                         <th className="py-3.5 px-6">Paciente</th>
                         <th className="py-3.5 px-6">DNI</th>
                         <th className="py-3.5 px-6">Teléfono WhatsApp</th>
@@ -991,17 +1122,24 @@ export default function AdminPanel() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {appointments.length === 0 ? (
+                      {appointments.filter(a => a.date === selectedDateStr).length === 0 ? (
                         <tr>
                           <td colSpan={6} className="text-center py-12 text-slate-400 text-xs">
-                            No hay turnos registrados en la agenda.
+                            <Calendar className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                            No hay turnos registrados para el día {selectedDateStr}. Selecciona otro día en el calendario arriba.
                           </td>
                         </tr>
                       ) : (
-                        appointments.map((appt) => (
+                        appointments
+                          .filter(a => a.date === selectedDateStr)
+                          .sort((a, b) => a.time.localeCompare(b.time))
+                          .map((appt) => (
                           <tr key={appt.id} className="hover:bg-slate-50/80 transition">
-                            <td className="py-4 px-6 font-semibold text-slate-900 whitespace-nowrap">
-                              {appt.date} <span className="text-teal-600 ml-1">{appt.time} hs</span>
+                            <td className="py-4 px-6 font-black text-slate-900 whitespace-nowrap">
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-teal-50 text-teal-800 rounded-xl border border-teal-200 text-xs">
+                                <Clock className="w-3.5 h-3.5 text-teal-600" />
+                                {appt.time} hs
+                              </span>
                             </td>
                             <td className="py-4 px-6 font-medium text-slate-900">{appt.patient?.name || '—'}</td>
                             <td className="py-4 px-6 font-mono text-xs">{appt.patient?.dni || '—'}</td>
