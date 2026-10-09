@@ -691,6 +691,18 @@ app.patch('/api/admin/appointments/:id', async (req, res) => {
   }
 });
 
+// Eliminar Turno de la Base de Datos (SuperAdmin, Admin, Asistente)
+app.delete('/api/admin/appointments/:id', async (req, res) => {
+  try {
+    await prisma.appointment.delete({
+      where: { id: req.params.id }
+    });
+    res.json({ success: true, message: 'Turno eliminado correctamente.' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Bloquear / Desbloquear Horario o Día
 app.post('/api/admin/schedule-blocks', async (req, res) => {
   try {

@@ -285,6 +285,27 @@ export default function AdminPanel() {
     } catch (e) {}
   };
 
+  const deleteAppointment = async (id: string, patientName?: string, date?: string, time?: string) => {
+    const info = patientName ? `el turno de ${patientName} (${date} ${time} hs)` : 'este turno';
+    if (!window.confirm(`¿Estás seguro de que deseas eliminar permanentemente ${info}? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/admin/appointments/${id}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        await loadAgenda();
+        setFeedback('Turno eliminado correctamente.');
+        setTimeout(() => setFeedback(''), 3000);
+      } else {
+        alert('No se pudo eliminar el turno. Intenta nuevamente.');
+      }
+    } catch (e) {
+      alert('Error de conexión al eliminar el turno.');
+    }
+  };
+
   // Crear Bloqueo de Horario / Día
   const handleCreateBlock = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -967,6 +988,7 @@ export default function AdminPanel() {
                                 <button
                                   onClick={() => updateAppointmentStatus(appt.id, 'CONFIRMED')}
                                   className="px-2.5 py-1 text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg transition"
+                                  title="Confirmar turno"
                                 >
                                   Confirmar
                                 </button>
@@ -974,11 +996,20 @@ export default function AdminPanel() {
                               {appt.status !== 'CANCELLED' && (
                                 <button
                                   onClick={() => updateAppointmentStatus(appt.id, 'CANCELLED')}
-                                  className="px-2.5 py-1 text-xs bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-lg transition"
+                                  className="px-2.5 py-1 text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold rounded-lg transition"
+                                  title="Cancelar turno"
                                 >
                                   Cancelar
                                 </button>
                               )}
+                              <button
+                                onClick={() => deleteAppointment(appt.id, appt.patient?.name, appt.date, appt.time)}
+                                className="px-2.5 py-1 text-xs bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-lg transition inline-flex items-center gap-1"
+                                title="Eliminar turno permanentemente"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>Eliminar</span>
+                              </button>
                             </td>
                           </tr>
                         ))
@@ -1143,17 +1174,26 @@ export default function AdminPanel() {
                       ) : (
                         <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                           {selectedDayAppointments.map(a => (
-                            <div key={a.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs flex justify-between items-center">
-                              <div>
+                            <div key={a.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs flex justify-between items-center gap-2">
+                              <div className="min-w-0 flex-1">
                                 <span className="font-bold text-slate-800">{a.time} hs</span> - <span className="text-slate-700">{a.patient?.name}</span>
-                                <span className="block text-[10px] text-slate-400">DNI: {a.patient?.dni}</span>
+                                <span className="block text-[10px] text-slate-400 truncate">DNI: {a.patient?.dni}</span>
                               </div>
-                              <span className={`px-2 py-0.5 text-[9px] font-black rounded uppercase ${
-                                a.status === 'CONFIRMED' ? 'bg-emerald-100 text-emerald-800' :
-                                a.status === 'CANCELLED' ? 'bg-rose-100 text-rose-800' : 'bg-blue-100 text-blue-800'
-                              }`}>
-                                {a.status === 'CONFIRMED' ? 'Conf.' : a.status === 'CANCELLED' ? 'Canc.' : 'Pend.'}
-                              </span>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <span className={`px-2 py-0.5 text-[9px] font-black rounded uppercase ${
+                                  a.status === 'CONFIRMED' ? 'bg-emerald-100 text-emerald-800' :
+                                  a.status === 'CANCELLED' ? 'bg-rose-100 text-rose-800' : 'bg-blue-100 text-blue-800'
+                                }`}>
+                                  {a.status === 'CONFIRMED' ? 'Conf.' : a.status === 'CANCELLED' ? 'Canc.' : 'Pend.'}
+                                </span>
+                                <button
+                                  onClick={() => deleteAppointment(a.id, a.patient?.name, a.date, a.time)}
+                                  className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition"
+                                  title="Eliminar este turno"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             </div>
                           ))}
                         </div>
