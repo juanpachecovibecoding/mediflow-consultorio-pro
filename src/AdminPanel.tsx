@@ -37,7 +37,8 @@ import {
   Mail,
   User,
   RefreshCw,
-  PowerOff
+  PowerOff,
+  MessageCircle
 } from 'lucide-react';
 import { updateFavicon } from './utils/favicon';
 
@@ -1143,7 +1144,25 @@ export default function AdminPanel() {
                             </td>
                             <td className="py-4 px-6 font-medium text-slate-900">{appt.patient?.name || '—'}</td>
                             <td className="py-4 px-6 font-mono text-xs">{appt.patient?.dni || '—'}</td>
-                            <td className="py-4 px-6 text-xs text-slate-500">{appt.patient?.phone || '—'}</td>
+                            <td className="py-4 px-6 text-xs text-slate-700 whitespace-nowrap">
+                              {appt.patient?.phone ? (
+                                <div className="inline-flex items-center gap-2">
+                                  <span className="font-mono text-slate-600">{appt.patient.phone}</span>
+                                  <a
+                                    href={`https://wa.me/${appt.patient.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola ${appt.patient.name || ''}, te escribimos desde ${clinic.clinicName || 'el consultorio'} con respecto a tu turno del día ${appt.date} a las ${appt.time} hs.`)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg border border-emerald-200 text-[11px] transition hover:scale-105 shadow-sm"
+                                    title={`Chatear con ${appt.patient.name || 'el paciente'} por WhatsApp`}
+                                  >
+                                    <MessageCircle className="w-3.5 h-3.5 fill-current" />
+                                    <span>WhatsApp</span>
+                                  </a>
+                                </div>
+                              ) : (
+                                <span className="text-slate-400">—</span>
+                              )}
+                            </td>
                             <td className="py-4 px-6">
                               <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ${
                                 appt.status === 'CONFIRMED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
@@ -1584,7 +1603,25 @@ export default function AdminPanel() {
                       <tr key={pat.id} className="hover:bg-slate-50/80 transition">
                         <td className="py-4 px-6 font-mono text-xs font-bold text-slate-900">{pat.dni}</td>
                         <td className="py-4 px-6 font-medium text-slate-900">{pat.name}</td>
-                        <td className="py-4 px-6 text-xs text-slate-600 font-mono">{pat.phone}</td>
+                        <td className="py-4 px-6 text-xs text-slate-700 whitespace-nowrap">
+                          {pat.phone ? (
+                            <div className="inline-flex items-center gap-2">
+                              <span className="font-mono text-slate-600">{pat.phone}</span>
+                              <a
+                                href={`https://wa.me/${pat.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola ${pat.name || ''}, nos comunicamos desde ${clinic.clinicName || 'el consultorio'}.`)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg border border-emerald-200 text-[11px] transition hover:scale-105 shadow-sm"
+                                title={`Abrir chat con ${pat.name} por WhatsApp`}
+                              >
+                                <MessageCircle className="w-3.5 h-3.5 fill-current" />
+                                <span>WhatsApp</span>
+                              </a>
+                            </div>
+                          ) : (
+                            <span className="text-slate-400">—</span>
+                          )}
+                        </td>
                         <td className="py-4 px-6 text-xs">
                           <span className="px-2.5 py-1 bg-slate-100 text-slate-700 font-semibold rounded-lg uppercase text-[10px]">
                             {pat.healthInsurance || 'Particular'}
