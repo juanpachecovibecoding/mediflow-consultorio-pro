@@ -677,15 +677,23 @@ app.get('/api/admin/agenda', async (req, res) => {
   }
 });
 
-// Actualizar Estado de Turno (Confirmar, Cancelar, Atendido)
+// Actualizar Turno (Fecha, Hora, Estado, Servicio, Notas)
 app.patch('/api/admin/appointments/:id', async (req, res) => {
   try {
-    const { status } = req.body;
+    const { status, date, time, serviceId, notes } = req.body;
+    const data: any = {};
+    if (status !== undefined) data.status = status;
+    if (date !== undefined) data.date = date;
+    if (time !== undefined) data.time = time;
+    if (serviceId !== undefined) data.serviceId = serviceId || null;
+    if (notes !== undefined) data.notes = notes;
+
     const updated = await prisma.appointment.update({
       where: { id: req.params.id },
-      data: { status }
+      data,
+      include: { patient: true, service: true }
     });
-    res.json(updated);
+    res.json({ success: true, appointment: updated });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

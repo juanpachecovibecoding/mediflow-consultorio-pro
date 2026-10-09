@@ -92,6 +92,23 @@ export default function AdminPanel() {
   const [blockReason, setBlockReason] = useState('Feriado / Sin atención');
   const [blockLoading, setBlockLoading] = useState(false);
 
+  // Estado del Modal de Edición de Turno Asignado
+  const [editApptModal, setEditApptModal] = useState<{
+    open: boolean;
+    appointment: any | null;
+    date: string;
+    time: string;
+    status: string;
+    notes: string;
+  }>({
+    open: false,
+    appointment: null,
+    date: '',
+    time: '10:00',
+    status: 'SCHEDULED',
+    notes: ''
+  });
+
   // Estado de Gestión Manual de Pacientes (Todos los Roles)
   const [patientModal, setPatientModal] = useState<{ open: boolean; isEdit: boolean; id?: string }>({ open: false, isEdit: false });
   const [patientForm, setPatientForm] = useState({
@@ -304,6 +321,9 @@ export default function AdminPanel() {
         method: 'DELETE'
       });
       if (res.ok) {
+        if (editApptModal.open) {
+          setEditApptModal(prev => ({ ...prev, open: false }));
+        }
         await loadAgenda();
         setFeedback('Turno eliminado correctamente.');
         setTimeout(() => setFeedback(''), 3000);
@@ -312,6 +332,46 @@ export default function AdminPanel() {
       }
     } catch (e) {
       alert('Error de conexión al eliminar el turno.');
+    }
+  };
+
+  const openEditAppointment = (appt: any) => {
+    setEditApptModal({
+      open: true,
+      appointment: appt,
+      date: appt.date,
+      time: appt.time,
+      status: appt.status,
+      notes: appt.notes || ''
+    });
+  };
+
+  const handleSaveEditedAppointment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editApptModal.appointment) return;
+
+    try {
+      const res = await fetch(`/api/admin/appointments/${editApptModal.appointment.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: editApptModal.date,
+          time: editApptModal.time,
+          status: editApptModal.status,
+          notes: editApptModal.notes.trim()
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setEditApptModal(prev => ({ ...prev, open: false }));
+        await loadAgenda();
+        setFeedback('¡Turno actualizado exitosamente!');
+        setTimeout(() => setFeedback(''), 3500);
+      } else {
+        alert(data.error || 'Error al actualizar el turno.');
+      }
+    } catch (e) {
+      alert('Error de conexión al guardar el turno.');
     }
   };
 
@@ -1219,32 +1279,14 @@ export default function AdminPanel() {
                                  appt.status === 'CANCELLED' ? 'Cancelado' : appt.status}
                               </span>
                             </td>
-                            <td className="py-4 px-6 text-right space-x-2 whitespace-nowrap">
-                              {appt.status !== 'CONFIRMED' && (
-                                <button
-                                  onClick={() => updateAppointmentStatus(appt.id, 'CONFIRMED')}
-                                  className="px-2.5 py-1 text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg transition"
-                                  title="Confirmar turno"
-                                >
-                                  Confirmar
-                                </button>
-                              )}
-                              {appt.status !== 'CANCELLED' && (
-                                <button
-                                  onClick={() => updateAppointmentStatus(appt.id, 'CANCELLED')}
-                                  className="px-2.5 py-1 text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold rounded-lg transition"
-                                  title="Cancelar turno"
-                                >
-                                  Cancelar
-                                </button>
-                              )}
+                            <td className="py-4 px-6 text-right whitespace-nowrap">
                               <button
-                                onClick={() => deleteAppointment(appt.id, appt.patient?.name, appt.date, appt.time)}
-                                className="px-2.5 py-1 text-xs bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-lg transition inline-flex items-center gap-1"
-                                title="Eliminar turno permanentemente"
+                                onClick={() => openEditAppointment(appt)}
+                                className="px-3.5 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-800 font-bold rounded-xl border border-teal-200 text-xs transition inline-flex items-center gap-1.5 shadow-sm hover:scale-105"
+                                title="Editar fecha, hora, estado o cancelar/eliminar turno"
                               >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                <span>Eliminar</span>
+                                <Edit3 className="w-3.5 h-3.5 text-teal-600" />
+                                <span>Editar Turno</span>
                               </button>
                             </td>
                           </tr>
@@ -1451,11 +1493,11 @@ export default function AdminPanel() {
                                   {a.status === 'CONFIRMED' ? 'Conf.' : a.status === 'CANCELLED' ? 'Canc.' : 'Pend.'}
                                 </span>
                                 <button
-                                  onClick={() => deleteAppointment(a.id, a.patient?.name, a.date, a.time)}
-                                  className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition"
-                                  title="Eliminar este turno"
+                                  onClick={() => openEditAppointment(a)}
+                                  className="p-1 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded transition"
+                                  title="Editar fecha, hora, estado o cancelar/eliminar este turno"
                                 >
-                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <Edit3 className="w-3.5 h-3.5" />
                                 </button>
                               </div>
                             </div>
@@ -2657,6 +2699,162 @@ export default function AdminPanel() {
                 >
                   Guardar Cambios
                 </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: EDITAR TURNO ASIGNADO (FECHA, HORA, ESTADO, CONFIRMAR, CANCELAR Y ELIMINAR) */}
+      {editApptModal.open && editApptModal.appointment && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-white rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-100 animate-fade-in space-y-6">
+            
+            {/* CABECERA */}
+            <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-teal-600 block">
+                  Gestión del Turno
+                </span>
+                <h3 className="text-xl font-black text-slate-900 flex items-center gap-2 mt-0.5">
+                  <Calendar className="w-5 h-5 text-teal-600" />
+                  Editar Turno Asignado
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Paciente: <strong className="text-slate-800">{editApptModal.appointment.patient?.name}</strong> (DNI: {editApptModal.appointment.patient?.dni})
+                </p>
+              </div>
+
+              <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+                editApptModal.status === 'CONFIRMED' ? 'bg-emerald-100 text-emerald-800' :
+                editApptModal.status === 'CANCELLED' ? 'bg-rose-100 text-rose-800' :
+                'bg-blue-100 text-blue-800'
+              }`}>
+                {editApptModal.status === 'CONFIRMED' ? 'Confirmado' :
+                 editApptModal.status === 'CANCELLED' ? 'Cancelado' : 'Pendiente'}
+              </span>
+            </div>
+
+            {/* FORMULARIO DE CAMBIO DE FECHA Y HORA */}
+            <form onSubmit={handleSaveEditedAppointment} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-teal-600" /> Fecha del Turno
+                  </label>
+                  <input 
+                    type="date"
+                    required
+                    value={editApptModal.date}
+                    onChange={e => setEditApptModal({ ...editApptModal, date: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 outline-none focus:ring-2 focus:ring-teal-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1 flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-teal-600" /> Horario (HH:MM)
+                  </label>
+                  <input 
+                    type="time"
+                    required
+                    value={editApptModal.time}
+                    onChange={e => setEditApptModal({ ...editApptModal, time: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 outline-none focus:ring-2 focus:ring-teal-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                  Notas u Observaciones del Turno
+                </label>
+                <input 
+                  type="text"
+                  placeholder="Ej: Paciente solicitó reprogramación, atender con prioridad..."
+                  value={editApptModal.notes}
+                  onChange={e => setEditApptModal({ ...editApptModal, notes: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:ring-2 focus:ring-teal-500"
+                />
+              </div>
+
+              {/* ACCIONES RÁPIDAS DE ESTADO (CONFIRMAR Y CANCELAR DENTRO DE LA EDICIÓN) */}
+              <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                  Cambio Rápido de Estado:
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditApptModal({ ...editApptModal, status: 'CONFIRMED' })}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition ${
+                      editApptModal.status === 'CONFIRMED'
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                        : 'bg-white text-emerald-700 border-slate-200 hover:bg-emerald-50'
+                    }`}
+                  >
+                    ✓ Marcar Confirmado
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setEditApptModal({ ...editApptModal, status: 'CANCELLED' })}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition ${
+                      editApptModal.status === 'CANCELLED'
+                        ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
+                        : 'bg-white text-amber-700 border-slate-200 hover:bg-amber-50'
+                    }`}
+                  >
+                    ✕ Marcar Cancelado
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setEditApptModal({ ...editApptModal, status: 'SCHEDULED' })}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition ${
+                      editApptModal.status === 'SCHEDULED'
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                        : 'bg-white text-blue-700 border-slate-200 hover:bg-blue-50'
+                    }`}
+                  >
+                    ⏳ Marcar Pendiente
+                  </button>
+                </div>
+              </div>
+
+              {/* BOTONES PRINCIPALES DE GUARDADO Y ELIMINACIÓN PERMANENTE */}
+              <div className="pt-4 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => deleteAppointment(
+                    editApptModal.appointment.id,
+                    editApptModal.appointment.patient?.name,
+                    editApptModal.date,
+                    editApptModal.time
+                  )}
+                  className="w-full sm:w-auto px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 transition flex items-center justify-center gap-1.5"
+                  title="Eliminar este turno de la base de datos"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Eliminar Turno</span>
+                </button>
+
+                <div className="w-full sm:w-auto flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditApptModal(prev => ({ ...prev, open: false }))}
+                    className="w-full sm:w-auto px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+                  >
+                    Cerrar
+                  </button>
+
+                  <button
+                    type="submit"
+                    className="w-full sm:w-auto px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-md transition"
+                  >
+                    Guardar Cambios
+                  </button>
+                </div>
               </div>
             </form>
           </div>
