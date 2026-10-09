@@ -64,8 +64,8 @@ export default function AdminPanel() {
   // Navegación
   const [activeTab, setActiveTab] = useState<'agenda' | 'pacientes' | 'whatsapp' | 'configuracion' | 'perfil_clinica'>('agenda');
 
-  // Sub-vista de la Agenda: 'proximos' | 'calendario'
-  const [agendaView, setAgendaView] = useState<'proximos' | 'calendario'>('proximos');
+  // Sub-vista de la Agenda: 'menu' (selección de tarjetas) | 'proximos' | 'calendario'
+  const [agendaView, setAgendaView] = useState<'menu' | 'proximos' | 'calendario'>('menu');
 
   // Datos de la clínica, agenda y bloqueos
   const [appointments, setAppointments] = useState<any[]>([]);
@@ -775,7 +775,10 @@ export default function AdminPanel() {
         {/* NAVEGACIÓN SEGÚN EL ROL */}
         <nav className="p-4 space-y-1.5 flex-1">
           <button
-            onClick={() => setActiveTab('agenda')}
+            onClick={() => {
+              setActiveTab('agenda');
+              setAgendaView('menu');
+            }}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition ${
               activeTab === 'agenda' ? 'bg-teal-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
             }`}
@@ -859,89 +862,121 @@ export default function AdminPanel() {
           )}
         </header>
 
-        {/* 1. TAB: AGENDA (CON LAS 2 TARJETAS SOLICITADAS: PRÓXIMOS TURNOS Y CALENDARIO) */}
+        {/* 1. TAB: AGENDA (NAVEGACIÓN DIRECTA ENTRE TARJETAS Y SECCIONES) */}
         {activeTab === 'agenda' && (
           <div className="space-y-6">
             
-            {/* LAS 2 TARJETAS PRINCIPALES */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              
-              {/* TARJETA 1: PRÓXIMOS TURNOS */}
-              <div 
-                onClick={() => setAgendaView('proximos')}
-                className={`p-6 rounded-3xl border transition-all cursor-pointer flex items-start gap-4 ${
-                  agendaView === 'proximos'
-                    ? 'bg-gradient-to-br from-teal-600 to-emerald-700 text-white shadow-xl shadow-teal-600/20 border-teal-500 scale-[1.01]'
-                    : 'bg-white text-slate-800 border-slate-200 hover:border-teal-300 hover:shadow-md'
-                }`}
-              >
-                <div className={`p-3.5 rounded-2xl shrink-0 ${
-                  agendaView === 'proximos' ? 'bg-white/20 text-white' : 'bg-teal-50 text-teal-600'
-                }`}>
-                  <ListOrdered className="w-6 h-6" />
+            {/* VISTA A: MENÚ DE LAS 2 TARJETAS PRINCIPALES */}
+            {agendaView === 'menu' && (
+              <div className="space-y-4 animate-fade-in">
+                <div>
+                  <h3 className="text-lg font-black text-slate-900">Selecciona el área que deseas gestionar</h3>
+                  <p className="text-xs text-slate-500">Elige entre ver el listado cronológico de turnos o ingresar al calendario interactivo.</p>
                 </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-black tracking-tight">Próximos Turnos</h3>
-                    <span className={`text-xs font-black px-2.5 py-0.5 rounded-full ${
-                      agendaView === 'proximos' ? 'bg-white/25 text-white' : 'bg-teal-50 text-teal-700 border border-teal-200'
-                    }`}>
-                      {appointments.filter(a => a.status !== 'CANCELLED').length} Activos
-                    </span>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {/* TARJETA 1: PRÓXIMOS TURNOS */}
+                  <div 
+                    onClick={() => setAgendaView('proximos')}
+                    className="group bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 hover:border-teal-400 hover:shadow-xl transition-all cursor-pointer flex flex-col justify-between gap-6"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="p-4 rounded-2xl bg-teal-50 text-teal-600 group-hover:bg-teal-600 group-hover:text-white transition-colors shrink-0 shadow-sm">
+                        <ListOrdered className="w-8 h-8" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <h3 className="text-xl font-black tracking-tight text-slate-900 group-hover:text-teal-700 transition-colors">
+                            Próximos Turnos
+                          </h3>
+                          <span className="text-xs font-black px-3 py-1 rounded-full bg-teal-50 text-teal-700 border border-teal-200">
+                            {appointments.filter(a => a.status !== 'CANCELLED').length} Activos
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+                          Ingresa aquí para ver el listado cronológico de citas programadas, datos de los pacientes, teléfonos y botones para confirmar, cancelar o eliminar turnos.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-4 border-t border-slate-100 text-xs font-bold text-teal-700 group-hover:translate-x-1 transition-transform">
+                      <span>Abrir lista de turnos</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </div>
                   </div>
-                  <p className={`text-xs mt-1 leading-relaxed ${
-                    agendaView === 'proximos' ? 'text-teal-100' : 'text-slate-500'
-                  }`}>
-                    Entra aquí para ver el listado de citas programadas, datos de los pacientes y acciones para confirmar o cancelar.
-                  </p>
+
+                  {/* TARJETA 2: CALENDARIO & BLOQUEOS */}
+                  <div 
+                    onClick={() => setAgendaView('calendario')}
+                    className="group bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 hover:border-teal-400 hover:shadow-xl transition-all cursor-pointer flex flex-col justify-between gap-6"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="p-4 rounded-2xl bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors shrink-0 shadow-sm">
+                        <CalendarDays className="w-8 h-8" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <h3 className="text-xl font-black tracking-tight text-slate-900 group-hover:text-emerald-700 transition-colors">
+                            Calendario & Bloqueos
+                          </h3>
+                          <span className="text-xs font-black px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                            {scheduleBlocks.length} Bloqueos
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+                          Vista de calendario mensual con los turnos ocupados, consulta día a día y herramientas completas para bloquear días u horarios específicos.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-4 border-t border-slate-100 text-xs font-bold text-emerald-700 group-hover:translate-x-1 transition-transform">
+                      <span>Abrir calendario interactivo</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </div>
+                  </div>
                 </div>
               </div>
-
-              {/* TARJETA 2: CALENDARIO & BLOQUEOS */}
-              <div 
-                onClick={() => setAgendaView('calendario')}
-                className={`p-6 rounded-3xl border transition-all cursor-pointer flex items-start gap-4 ${
-                  agendaView === 'calendario'
-                    ? 'bg-gradient-to-br from-teal-600 to-emerald-700 text-white shadow-xl shadow-teal-600/20 border-teal-500 scale-[1.01]'
-                    : 'bg-white text-slate-800 border-slate-200 hover:border-teal-300 hover:shadow-md'
-                }`}
-              >
-                <div className={`p-3.5 rounded-2xl shrink-0 ${
-                  agendaView === 'calendario' ? 'bg-white/20 text-white' : 'bg-teal-50 text-teal-600'
-                }`}>
-                  <CalendarDays className="w-6 h-6" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-black tracking-tight">Calendario & Bloqueos</h3>
-                    <span className={`text-xs font-black px-2.5 py-0.5 rounded-full ${
-                      agendaView === 'calendario' ? 'bg-white/25 text-white' : 'bg-amber-50 text-amber-700 border border-amber-200'
-                    }`}>
-                      {scheduleBlocks.length} Bloqueos
-                    </span>
-                  </div>
-                  <p className={`text-xs mt-1 leading-relaxed ${
-                    agendaView === 'calendario' ? 'text-teal-100' : 'text-slate-500'
-                  }`}>
-                    Vista de calendario mensual con los turnos ocupados y herramientas para bloquear días u horarios a tu antojo.
-                  </p>
-                </div>
-              </div>
-
-            </div>
+            )}
 
             {/* VISTA 1: TABLA DE PRÓXIMOS TURNOS */}
             {agendaView === 'proximos' && (
-              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden animate-fade-in">
-                <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-                  <div>
-                    <h3 className="font-bold text-slate-900">Listado Cronológico de Turnos</h3>
-                    <p className="text-xs text-slate-500">Pacientes agendados vía WhatsApp y Portal de Reserva.</p>
+              <div className="space-y-4 animate-fade-in">
+                {/* BARRA SUPERIOR DE NAVEGACIÓN Y CAMBIO RÁPIDO */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setAgendaView('menu')}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      Volver a Tarjetas
+                    </button>
+                    <span className="text-slate-300">|</span>
+                    <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                      <ListOrdered className="w-4 h-4 text-teal-600" />
+                      Sección: Próximos Turnos
+                    </span>
                   </div>
-                  <span className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
-                    Total: {appointments.length}
-                  </span>
+
+                  <button
+                    onClick={() => setAgendaView('calendario')}
+                    className="text-xs font-bold text-teal-700 hover:text-teal-800 hover:underline flex items-center gap-1"
+                  >
+                    <span>Ir a Calendario & Bloqueos</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
                 </div>
+
+                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+                    <div>
+                      <h3 className="font-bold text-slate-900">Listado Cronológico de Turnos</h3>
+                      <p className="text-xs text-slate-500">Pacientes agendados vía WhatsApp y Portal de Reserva.</p>
+                    </div>
+                    <span className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
+                      Total: {appointments.length}
+                    </span>
+                  </div>
                 
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm text-slate-600">
@@ -1018,11 +1053,39 @@ export default function AdminPanel() {
                   </table>
                 </div>
               </div>
+            </div>
             )}
 
             {/* VISTA 2: CALENDARIO MENSUAL & GESTIÓN DE BLOQUEOS */}
             {agendaView === 'calendario' && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
+              <div className="space-y-4 animate-fade-in">
+                {/* BARRA SUPERIOR DE NAVEGACIÓN Y CAMBIO RÁPIDO */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setAgendaView('menu')}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      Volver a Tarjetas
+                    </button>
+                    <span className="text-slate-300">|</span>
+                    <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                      <CalendarDays className="w-4 h-4 text-emerald-600" />
+                      Sección: Calendario & Bloqueos
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={() => setAgendaView('proximos')}
+                    className="text-xs font-bold text-teal-700 hover:text-teal-800 hover:underline flex items-center gap-1"
+                  >
+                    <span>Ir a Próximos Turnos</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
                 {/* CALENDARIO MENSUAL INTERACTIVO (COL 1 Y 2) */}
                 <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-6">
@@ -1311,6 +1374,7 @@ export default function AdminPanel() {
                 </div>
 
               </div>
+            </div>
             )}
 
           </div>
