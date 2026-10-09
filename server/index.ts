@@ -666,6 +666,7 @@ app.get('/api/admin/agenda', async (req, res) => {
       orderBy: [{ date: 'asc' }, { time: 'asc' }]
     });
     const patients = await prisma.patient.findMany({
+      include: { appointments: true },
       orderBy: { name: 'asc' }
     });
     const scheduleBlocks = await prisma.scheduleBlock.findMany();

@@ -1715,7 +1715,10 @@ export default function AdminPanel() {
                         </td>
                         <td className="py-4 px-6 text-xs text-slate-500">{pat.email || '—'}</td>
                         <td className="py-4 px-6 text-xs font-bold text-teal-600">
-                          {pat.appointments?.length || 0} turnos
+                          {(() => {
+                            const count = appointments.filter(a => a.patientId === pat.id).length || pat.appointments?.length || 0;
+                            return `${count} ${count === 1 ? 'turno' : 'turnos'}`;
+                          })()}
                         </td>
                         <td className="py-4 px-6 text-right space-x-1.5 whitespace-nowrap">
                           <button
