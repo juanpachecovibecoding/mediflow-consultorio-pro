@@ -108,6 +108,14 @@ export default function AdminPanel() {
   const [systemUsers, setSystemUsers] = useState<any[]>([]);
   const [newUserModal, setNewUserModal] = useState(false);
   const [newUserData, setNewUserData] = useState({ name: '', username: '', password: '', role: 'asistente' });
+  const [editUserModal, setEditUserModal] = useState<{ open: boolean; id: string; name: string; username: string; password: string; role: string }>({
+    open: false,
+    id: '',
+    name: '',
+    username: '',
+    password: '',
+    role: 'asistente'
+  });
   const [pwdChangeModal, setPwdChangeModal] = useState<{ open: boolean; userId: string; username: string }>({ open: false, userId: '', username: '' });
   const [newPasswordVal, setNewPasswordVal] = useState('');
 
@@ -557,6 +565,42 @@ export default function AdminPanel() {
         setTimeout(() => setFeedback(''), 3500);
       } else {
         alert('Error al actualizar contraseña.');
+      }
+    } catch (e) {
+      alert('Error de conexión.');
+    }
+  };
+
+  // Editar Usuario Completo (SuperAdmin: Nombre, Rol y Contraseña opcional)
+  const handleUpdateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editUserModal.id) return;
+
+    try {
+      const payload: any = {
+        name: editUserModal.name.trim(),
+        role: editUserModal.role === 'admin' ? 'admin' : 'asistente'
+      };
+      if (editUserModal.password.trim()) {
+        payload.password = editUserModal.password.trim();
+      }
+
+      const res = await fetch(`/api/admin/users/${editUserModal.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-pin': superAdminPin
+        },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setEditUserModal({ open: false, id: '', name: '', username: '', password: '', role: 'asistente' });
+        loadUsersList();
+        setFeedback('¡Usuario actualizado exitosamente!');
+        setTimeout(() => setFeedback(''), 3500);
+      } else {
+        alert(data.error || 'Error al actualizar usuario.');
       }
     } catch (e) {
       alert('Error de conexión.');
@@ -1958,21 +2002,21 @@ export default function AdminPanel() {
                           </td>
                           <td className="py-3.5 px-4 text-right space-x-1.5 whitespace-nowrap">
                             <button
-                              onClick={() => handleToggleUserRole(u)}
-                              title="Cambiar Rol (Doctor ⇄ Secretaría)"
-                              className="px-2 py-1 text-xs bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 font-bold rounded-lg transition"
-                            >
-                              Cambiar Rol
-                            </button>
-                            <button
                               onClick={() => {
-                                setPwdChangeModal({ open: true, userId: u.id, username: u.username });
-                                setNewPasswordVal('');
+                                setEditUserModal({
+                                  open: true,
+                                  id: u.id,
+                                  name: u.name,
+                                  username: u.username,
+                                  password: '',
+                                  role: u.role
+                                });
                               }}
-                              title="Cambiar Contraseña"
-                              className="px-2 py-1 text-xs bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-700 font-bold rounded-lg transition"
+                              title="Editar Usuario (Nombre, Rol y Contraseña)"
+                              className="px-2.5 py-1 text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-lg transition inline-flex items-center gap-1"
                             >
-                              Cambiar Clave
+                              <Edit3 className="w-3.5 h-3.5" />
+                              <span>Editar</span>
                             </button>
                             <button
                               onClick={() => handleToggleUserActive(u)}
@@ -2532,6 +2576,86 @@ export default function AdminPanel() {
                   className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition"
                 >
                   Actualizar Clave
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: EDITAR USUARIO COMPLETO (SUPERADMIN: NOMBRE, ROL Y CONTRASEÑA) */}
+      {editUserModal.open && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-100 animate-fade-in">
+            <h3 className="text-lg font-black text-slate-900 mb-1 flex items-center gap-2">
+              <Edit3 className="w-5 h-5 text-indigo-600" /> Editar Usuario de Consultorio
+            </h3>
+            <p className="text-xs text-slate-500 mb-6">
+              Modifica los datos de acceso para el usuario <strong className="text-slate-800 font-mono">@{editUserModal.username}</strong>.
+            </p>
+
+            <form onSubmit={handleUpdateUser} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Nombre Completo</label>
+                <input 
+                  type="text"
+                  required
+                  placeholder="Ej: Dr. Roberto Gómez / Ana López"
+                  value={editUserModal.name}
+                  onChange={e => setEditUserModal({ ...editUserModal, name: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Usuario (No modificable)</label>
+                <input 
+                  type="text"
+                  disabled
+                  value={editUserModal.username}
+                  className="w-full px-4 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm font-mono text-slate-500 cursor-not-allowed"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1 flex items-center justify-between">
+                  <span>Nueva Contraseña</span>
+                  <span className="text-[10px] text-slate-400 font-normal lowercase">(dejar en blanco para no cambiarla)</span>
+                </label>
+                <input 
+                  type="text"
+                  placeholder="Escribe una nueva contraseña solo si deseas cambiarla..."
+                  value={editUserModal.password}
+                  onChange={e => setEditUserModal({ ...editUserModal, password: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-mono outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Rol en el Sistema</label>
+                <select
+                  value={editUserModal.role}
+                  onChange={e => setEditUserModal({ ...editUserModal, role: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm bg-white outline-none focus:ring-2 focus:ring-indigo-500 font-semibold text-slate-800"
+                >
+                  <option value="admin">👨‍⚕️ Administrador (Doctor / Cliente)</option>
+                  <option value="asistente">📋 Secretaría (Asistente de Consultorio)</option>
+                </select>
+              </div>
+
+              <div className="pt-4 flex justify-end gap-2.5 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setEditUserModal({ open: false, id: '', name: '', username: '', password: '', role: 'asistente' })}
+                  className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition"
+                >
+                  Guardar Cambios
                 </button>
               </div>
             </form>
