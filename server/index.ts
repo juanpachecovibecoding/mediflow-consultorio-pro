@@ -4,6 +4,9 @@ import path from 'path';
 import crypto from 'crypto';
 import pino from 'pino';
 import QRCode from 'qrcode';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import rateLimit from 'express-rate-limit';
 import { Boom } from '@hapi/boom';
 import makeWASocket, { DisconnectReason, fetchLatestBaileysVersion, Browsers } from '@whiskeysockets/baileys';
 import { prisma } from './db.js';
@@ -14,9 +17,66 @@ import { checkAndProcessReminders } from './reminderQueue.js';
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 const APP_URL = process.env.APP_URL || `http://localhost:${PORT}`;
+const JWT_SECRET = process.env.JWT_SECRET || process.env.SUPERADMIN_SECRET || 'consultorio-pro-jwt-secret-key-2026';
 
-app.use(cors());
+// CORS configurado: permite el mismo origen y requests autorizados
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
 app.use(express.json());
+
+// Rate Limiter para intentos de inicio de sesión (previene fuerza bruta)
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 15, // máximo 15 intentos por IP cada 15 minutos
+  message: { error: 'Demasiados intentos de acceso fallidos. Por favor intenta en 15 minutos.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// Rate Limiter para confirmaciones de turnos públicos
+const bookingLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 30,
+  message: { error: 'Límite de solicitudes de reserva alcanzado. Espera unos momentos.' }
+});
+
+// Middleware de Autenticación Unificado para todo /api/admin/*
+// Permite acceso si:
+// 1. Posee Token JWT válido en Authorization: Bearer <token>
+// 2. O posee el Header x-admin-pin que coincide con el SuperAdmin PIN
+const requireAdminAuth = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  try {
+    const authHeader = req.headers['authorization'];
+    const pinHeader = req.headers['x-admin-pin'] as string;
+
+    const config = await prisma.systemConfig.findFirst();
+    const validPin = config?.superAdminPin || 'superadmin123';
+
+    // 1. Verificar SuperAdmin por PIN
+    if (pinHeader && pinHeader === validPin) {
+      (req as any).user = { id: 'superadmin', role: 'superadmin', name: 'SuperAdmin' };
+      return next();
+    }
+
+    // 2. Verificar por JWT Token
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET) as any;
+        (req as any).user = decoded;
+        return next();
+      } catch (err) {
+        return res.status(401).json({ error: 'Sesión expirada o token inválido.' });
+      }
+    }
+
+    return res.status(401).json({ error: 'Acceso no autorizado. Se requiere iniciar sesión.' });
+  } catch (error: any) {
+    return res.status(500).json({ error: 'Error de verificación de seguridad.' });
+  }
+};
 
 // -------------------------------------------------------------
 // 1. Keep-Alive / Health Check para Render Free ($0)
@@ -325,7 +385,7 @@ app.get('/api/booking/available-slots', async (req, res) => {
 });
 
 // Confirmar Reserva y Quemas el Token (Un solo uso)
-app.post('/api/booking/confirm', async (req, res) => {
+app.post('/api/booking/confirm', bookingLimiter, async (req, res) => {
   try {
     const { token, dni, name, phone, healthInsurance, serviceId, date, time } = req.body;
 
@@ -338,7 +398,20 @@ app.post('/api/booking/confirm', async (req, res) => {
       return res.status(400).json({ error: 'El enlace de reserva es inválido o ha caducado.' });
     }
 
-    // 2. Dar de alta o actualizar ficha de paciente
+    // 2. Verificar colisión horaria (prevenir doble turno en el mismo horario)
+    const existingConflict = await prisma.appointment.findFirst({
+      where: {
+        date,
+        time,
+        status: { notIn: ['CANCELLED'] }
+      }
+    });
+
+    if (existingConflict) {
+      return res.status(409).json({ error: 'El horario seleccionado acaba de ser ocupado por otro paciente. Por favor selecciona otro horario.' });
+    }
+
+    // 3. Dar de alta o actualizar ficha de paciente
     const patient = await prisma.patient.upsert({
       where: { dni },
       create: {
@@ -356,7 +429,7 @@ app.post('/api/booking/confirm', async (req, res) => {
       }
     });
 
-    // 3. Crear el turno
+    // 4. Crear el turno
     const appointment = await prisma.appointment.create({
       data: {
         patientId: patient.id,
@@ -404,7 +477,7 @@ app.post('/api/booking/confirm', async (req, res) => {
 // -------------------------------------------------------------
 
 // Login universal para el /panel (SuperAdmin, Doctor/Admin y Asistente)
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', loginLimiter, async (req, res) => {
   try {
     const { username, password } = req.body;
     if (!username || !password) {
@@ -418,8 +491,14 @@ app.post('/api/auth/login', async (req, res) => {
       const config = await prisma.systemConfig.findFirst();
       const validPin = config?.superAdminPin || 'superadmin123';
       if (password === validPin) {
+        const token = jwt.sign(
+          { id: 'superadmin', username: 'superadmin', role: 'superadmin' },
+          JWT_SECRET,
+          { expiresIn: '7d' }
+        );
         return res.json({
           success: true,
+          token,
           user: {
             id: 'superadmin',
             username: 'superadmin',
@@ -437,7 +516,29 @@ app.post('/api/auth/login', async (req, res) => {
       where: { username: cleanUser }
     });
 
-    if (!user || user.password !== password) {
+    if (!user) {
+      return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
+    }
+
+    // Soporte híbrido: Si la contraseña está en texto plano, la valida y la migra automáticamente a bcrypt
+    let isPasswordValid = false;
+    const isBcrypt = user.password.startsWith('$2a$') || user.password.startsWith('$2b$');
+
+    if (isBcrypt) {
+      isPasswordValid = await bcrypt.compare(password, user.password);
+    } else {
+      // Comparación en texto plano y auto-migración a hash seguro
+      if (user.password === password) {
+        isPasswordValid = true;
+        const hashedPassword = await bcrypt.hash(password, 10);
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { password: hashedPassword }
+        }).catch(console.error);
+      }
+    }
+
+    if (!isPasswordValid) {
       return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
     }
 
@@ -445,8 +546,15 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(403).json({ error: 'Este usuario ha sido desactivado. Consulta con soporte.' });
     }
 
+    const token = jwt.sign(
+      { id: user.id, username: user.username, role: user.role },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
     res.json({
       success: true,
+      token,
       user: {
         id: user.id,
         username: user.username,
@@ -501,10 +609,11 @@ app.post('/api/admin/users', async (req, res) => {
       return res.status(400).json({ error: 'El nombre de usuario ya está en uso.' });
     }
 
+    const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = await prisma.user.create({
       data: {
         username: cleanUser,
-        password,
+        password: hashedPassword,
         name,
         role: role === 'admin' ? 'admin' : 'asistente'
       }
@@ -531,7 +640,9 @@ app.patch('/api/admin/users/:id', async (req, res) => {
     const data: any = {};
     if (name !== undefined) data.name = name;
     if (username !== undefined) data.username = username.trim().toLowerCase();
-    if (password) data.password = password;
+    if (password && password.trim()) {
+      data.password = await bcrypt.hash(password.trim(), 10);
+    }
     if (role !== undefined) data.role = role === 'admin' ? 'admin' : 'asistente';
     if (active !== undefined) data.active = Boolean(active);
 
@@ -564,13 +675,13 @@ app.delete('/api/admin/users/:id', async (req, res) => {
 });
 
 // Iniciar WhatsApp
-app.post('/api/admin/whatsapp/start', async (req, res) => {
+app.post('/api/admin/whatsapp/start', requireAdminAuth, async (req, res) => {
   await startWhatsApp();
   res.json({ status: botState.status, qr: botState.qr });
 });
 
 // Cerrar Sesión de WhatsApp y Eliminar Credenciales (Permite regenerar QR y solucionar fallos)
-app.post('/api/admin/whatsapp/logout', async (req, res) => {
+app.post('/api/admin/whatsapp/logout', requireAdminAuth, async (req, res) => {
   try {
     isExplicitLogout = true;
     if (activeSock) {
@@ -609,7 +720,7 @@ app.post('/api/admin/whatsapp/logout', async (req, res) => {
 });
 
 // Estado de WhatsApp
-app.get('/api/admin/whatsapp/status', (req, res) => {
+app.get('/api/admin/whatsapp/status', requireAdminAuth, (req, res) => {
   res.json({
     status: botState.status,
     qr: botState.qr,
@@ -619,7 +730,7 @@ app.get('/api/admin/whatsapp/status', (req, res) => {
 });
 
 // Pausar / Reactivar Bot
-app.post('/api/admin/whatsapp/toggle', (req, res) => {
+app.post('/api/admin/whatsapp/toggle', requireAdminAuth, (req, res) => {
   botState.botActive = !!req.body.active;
   res.json({ botActive: botState.botActive });
 });
@@ -631,7 +742,12 @@ app.get('/api/admin/system-config', async (req, res) => {
   if (!config || pin !== config.superAdminPin) {
     return res.status(401).json({ error: 'PIN de SuperAdmin no autorizado.' });
   }
-  res.json(config);
+  // No exponer en texto plano la Gemini API Key si ya está cargada
+  const maskedConfig = {
+    ...config,
+    geminiApiKey: config.geminiApiKey ? `${config.geminiApiKey.substring(0, 4)}...${config.geminiApiKey.substring(config.geminiApiKey.length - 4)}` : ''
+  };
+  res.json(maskedConfig);
 });
 
 // Guardar Configuración Técnica (SuperAdmin)
@@ -645,21 +761,26 @@ app.post('/api/admin/system-config', async (req, res) => {
   }
 
   const { geminiApiKey, geminiModel, systemPrompt, superAdminPin } = req.body;
+  const updateData: any = {
+    geminiModel: geminiModel ?? config.geminiModel,
+    systemPrompt: systemPrompt ?? config.systemPrompt,
+    superAdminPin: superAdminPin ?? config.superAdminPin
+  };
+  // Solo actualizar api key si se envió una key real (no enmascarada)
+  if (geminiApiKey && !geminiApiKey.includes('...')) {
+    updateData.geminiApiKey = geminiApiKey;
+  }
+
   const updated = await prisma.systemConfig.update({
     where: { id: config.id },
-    data: {
-      geminiApiKey: geminiApiKey ?? config.geminiApiKey,
-      geminiModel: geminiModel ?? config.geminiModel,
-      systemPrompt: systemPrompt ?? config.systemPrompt,
-      superAdminPin: superAdminPin ?? config.superAdminPin
-    }
+    data: updateData
   });
 
   res.json({ success: true, config: updated });
 });
 
 // Obtener Agenda Completa y Pacientes (Doctor & Asistente)
-app.get('/api/admin/agenda', async (req, res) => {
+app.get('/api/admin/agenda', requireAdminAuth, async (req, res) => {
   try {
     const appointments = await prisma.appointment.findMany({
       include: { patient: true, service: true },
@@ -679,7 +800,7 @@ app.get('/api/admin/agenda', async (req, res) => {
 });
 
 // Actualizar Turno (Fecha, Hora, Estado, Servicio, Notas)
-app.patch('/api/admin/appointments/:id', async (req, res) => {
+app.patch('/api/admin/appointments/:id', requireAdminAuth, async (req, res) => {
   try {
     const { status, date, time, serviceId, notes } = req.body;
     const data: any = {};
@@ -701,7 +822,7 @@ app.patch('/api/admin/appointments/:id', async (req, res) => {
 });
 
 // Eliminar Turno de la Base de Datos (SuperAdmin, Admin, Asistente)
-app.delete('/api/admin/appointments/:id', async (req, res) => {
+app.delete('/api/admin/appointments/:id', requireAdminAuth, async (req, res) => {
   try {
     await prisma.appointment.delete({
       where: { id: req.params.id }
@@ -713,7 +834,7 @@ app.delete('/api/admin/appointments/:id', async (req, res) => {
 });
 
 // Bloquear / Desbloquear Horario o Día
-app.post('/api/admin/schedule-blocks', async (req, res) => {
+app.post('/api/admin/schedule-blocks', requireAdminAuth, async (req, res) => {
   try {
     const { date, time, reason } = req.body;
     const block = await prisma.scheduleBlock.create({
@@ -725,7 +846,7 @@ app.post('/api/admin/schedule-blocks', async (req, res) => {
   }
 });
 
-app.delete('/api/admin/schedule-blocks/:id', async (req, res) => {
+app.delete('/api/admin/schedule-blocks/:id', requireAdminAuth, async (req, res) => {
   try {
     await prisma.scheduleBlock.delete({ where: { id: req.params.id } });
     res.json({ success: true });
@@ -739,7 +860,7 @@ app.delete('/api/admin/schedule-blocks/:id', async (req, res) => {
 // -------------------------------------------------------------
 
 // Crear Paciente Manualmente
-app.post('/api/admin/patients', async (req, res) => {
+app.post('/api/admin/patients', requireAdminAuth, async (req, res) => {
   try {
     const { dni, name, phone, healthInsurance, email } = req.body;
     if (!dni || !name || !phone) {
@@ -769,7 +890,7 @@ app.post('/api/admin/patients', async (req, res) => {
 });
 
 // Editar Paciente
-app.patch('/api/admin/patients/:id', async (req, res) => {
+app.patch('/api/admin/patients/:id', requireAdminAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { dni, name, phone, healthInsurance, email } = req.body;
@@ -806,7 +927,7 @@ app.patch('/api/admin/patients/:id', async (req, res) => {
 });
 
 // Eliminar Paciente
-app.delete('/api/admin/patients/:id', async (req, res) => {
+app.delete('/api/admin/patients/:id', requireAdminAuth, async (req, res) => {
   try {
     const { id } = req.params;
     await prisma.patient.delete({ where: { id } });
@@ -860,13 +981,15 @@ async function seedInitialUsers() {
   try {
     const count = await prisma.user.count();
     if (count === 0) {
+      const adminHash = await bcrypt.hash('admin123', 10);
+      const secHash = await bcrypt.hash('secretaria123', 10);
       await prisma.user.createMany({
         data: [
-          { username: 'admin', password: 'admin123', name: 'Dr. Juan Pérez', role: 'admin' },
-          { username: 'secretaria', password: 'secretaria123', name: 'Secretaría de Consultorio', role: 'asistente' }
+          { username: 'admin', password: adminHash, name: 'Dr. Juan Pérez', role: 'admin' },
+          { username: 'secretaria', password: secHash, name: 'Secretaría de Consultorio', role: 'asistente' }
         ]
       });
-      console.log('[Auth] Usuarios iniciales sembrados exitosamente (admin / secretaria).');
+      console.log('[Auth] Usuarios iniciales sembrados con bcrypt exitosamente.');
     }
   } catch (e) {
     console.error('[Auth Seed Error]:', e);

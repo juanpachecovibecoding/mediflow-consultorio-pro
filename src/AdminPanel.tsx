@@ -137,7 +137,12 @@ export default function AdminPanel() {
   const [newPasswordVal, setNewPasswordVal] = useState('');
 
   // SuperAdmin Config & Seguridad
-  const [superAdminPin, setSuperAdminPin] = useState('superadmin123');
+  const [superAdminPin, setSuperAdminPin] = useState(() => {
+    return localStorage.getItem('consultorio_pin') || '';
+  });
+  const [authToken, setAuthToken] = useState<string>(() => {
+    return localStorage.getItem('consultorio_token') || '';
+  });
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [geminiModel, setGeminiModel] = useState('gemini-3.8-flash');
   const [systemPrompt, setSystemPrompt] = useState('');
@@ -146,10 +151,28 @@ export default function AdminPanel() {
 
   const [feedback, setFeedback] = useState('');
 
+  // Helper centralizado para llamadas autenticadas al backend
+  const authFetch = (url: string, options: RequestInit = {}) => {
+    const headers: Record<string, string> = {
+      ...(options.headers as Record<string, string> || {})
+    };
+    const token = authToken || localStorage.getItem('consultorio_token');
+    const pin = superAdminPin || localStorage.getItem('consultorio_pin');
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    if (pin) {
+      headers['x-admin-pin'] = pin;
+    }
+
+    return fetch(url, { ...options, headers });
+  };
+
   // Cargar datos al estar autenticado
   const loadAgenda = async () => {
     try {
-      const res = await fetch('/api/admin/agenda');
+      const res = await authFetch('/api/admin/agenda');
       if (res.ok) {
         const data = await res.json();
         setAppointments(data.appointments || []);
@@ -165,7 +188,7 @@ export default function AdminPanel() {
 
   const loadWaStatus = async () => {
     try {
-      const res = await fetch('/api/admin/whatsapp/status');
+      const res = await authFetch('/api/admin/whatsapp/status');
       if (res.ok) {
         const data = await res.json();
         setWaStatus(data.status);
@@ -176,9 +199,7 @@ export default function AdminPanel() {
 
   const loadUsersList = async () => {
     try {
-      const res = await fetch('/api/admin/users', {
-        headers: { 'x-admin-pin': superAdminPin }
-      });
+      const res = await authFetch('/api/admin/users');
       if (res.ok) {
         const data = await res.json();
         setSystemUsers(data.users || []);
@@ -188,15 +209,13 @@ export default function AdminPanel() {
 
   const loadSuperAdminConfig = async () => {
     try {
-      const res = await fetch('/api/admin/system-config', {
-        headers: { 'x-admin-pin': superAdminPin }
-      });
+      const res = await authFetch('/api/admin/system-config');
       if (res.ok) {
         const data = await res.json();
         setGeminiApiKey(data.geminiApiKey || '');
         setGeminiModel(data.geminiModel || 'gemini-3.8-flash');
         setSystemPrompt(data.systemPrompt || '');
-        setNewSuperAdminPin(data.superAdminPin || 'superadmin123');
+        setNewSuperAdminPin(data.superAdminPin || '');
       }
     } catch (e) {}
   };
@@ -234,8 +253,13 @@ export default function AdminPanel() {
       if (res.ok && data.success) {
         setCurrentUser(data.user);
         localStorage.setItem('consultorio_auth', JSON.stringify(data.user));
+        if (data.token) {
+          setAuthToken(data.token);
+          localStorage.setItem('consultorio_token', data.token);
+        }
         if (data.user.role === 'superadmin') {
           setSuperAdminPin(loginPassword);
+          localStorage.setItem('consultorio_pin', loginPassword);
           setActiveTab('configuracion');
         } else {
           setActiveTab('agenda');
@@ -252,7 +276,11 @@ export default function AdminPanel() {
 
   const handleLogout = () => {
     localStorage.removeItem('consultorio_auth');
+    localStorage.removeItem('consultorio_token');
+    localStorage.removeItem('consultorio_pin');
     setCurrentUser(null);
+    setAuthToken('');
+    setSuperAdminPin('');
     setLoginUsername('');
     setLoginPassword('');
     setActiveTab('agenda');
@@ -263,7 +291,7 @@ export default function AdminPanel() {
   const startWhatsApp = async () => {
     setWaLoading(true);
     try {
-      const res = await fetch('/api/admin/whatsapp/start', { method: 'POST' });
+      const res = await authFetch('/api/admin/whatsapp/start', { method: 'POST' });
       const data = await res.json();
       setWaStatus(data.status);
       setQrCode(data.qr);
@@ -281,7 +309,7 @@ export default function AdminPanel() {
 
     setWaLoading(true);
     try {
-      const res = await fetch('/api/admin/whatsapp/logout', {
+      const res = await authFetch('/api/admin/whatsapp/logout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ restart })
@@ -302,7 +330,7 @@ export default function AdminPanel() {
 
   const updateAppointmentStatus = async (id: string, status: string) => {
     try {
-      await fetch(`/api/admin/appointments/${id}`, {
+      await authFetch(`/api/admin/appointments/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status })
@@ -317,7 +345,7 @@ export default function AdminPanel() {
       return;
     }
     try {
-      const res = await fetch(`/api/admin/appointments/${id}`, {
+      const res = await authFetch(`/api/admin/appointments/${id}`, {
         method: 'DELETE'
       });
       if (res.ok) {
@@ -351,7 +379,7 @@ export default function AdminPanel() {
     if (!editApptModal.appointment) return;
 
     try {
-      const res = await fetch(`/api/admin/appointments/${editApptModal.appointment.id}`, {
+      const res = await authFetch(`/api/admin/appointments/${editApptModal.appointment.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -380,7 +408,7 @@ export default function AdminPanel() {
     e.preventDefault();
     setBlockLoading(true);
     try {
-      const res = await fetch('/api/admin/schedule-blocks', {
+      const res = await authFetch('/api/admin/schedule-blocks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -406,7 +434,7 @@ export default function AdminPanel() {
   // Eliminar Bloqueo (Liberar horario)
   const handleDeleteBlock = async (blockId: string) => {
     try {
-      const res = await fetch(`/api/admin/schedule-blocks/${blockId}`, {
+      const res = await authFetch(`/api/admin/schedule-blocks/${blockId}`, {
         method: 'DELETE'
       });
       if (res.ok) {
@@ -449,7 +477,7 @@ export default function AdminPanel() {
       const url = patientModal.isEdit ? `/api/admin/patients/${patientModal.id}` : '/api/admin/patients';
       const method = patientModal.isEdit ? 'PATCH' : 'POST';
 
-      const res = await fetch(url, {
+      const res = await authFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(patientForm)
@@ -474,7 +502,7 @@ export default function AdminPanel() {
     if (!confirm(`¿Estás seguro de eliminar al paciente "${name}"? Se eliminarán también sus turnos asociados.`)) return;
 
     try {
-      const res = await fetch(`/api/admin/patients/${id}`, {
+      const res = await authFetch(`/api/admin/patients/${id}`, {
         method: 'DELETE'
       });
       if (res.ok) {
