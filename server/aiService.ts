@@ -73,7 +73,7 @@ export async function processPatientMessage(
       } else {
         const nextAppt = foundPatient.appointments[0];
         if (nextAppt) {
-          patientContext = `[ESTADO DEL PACIENTE]: DNI ${dniFound} corresponde a "${foundPatient.name}". YA TIENE UN TURNO AGENDADO para el día ${nextAppt.date} a las ${nextAppt.time} hs con ${clinic.doctorName}. Salúdalo por su nombre, recuérdale su turno existente y pregúntale si desea confirmarlo (respondiendo 1) o cancelarlo/reprogramarlo (respondiendo 2).`;
+          patientContext = `[ESTADO DEL PACIENTE]: DNI ${dniFound} corresponde a "${foundPatient.name}". YA TIENE UN TURNO AGENDADO para el día ${nextAppt.date} a las ${nextAppt.time} hs en ${clinic.clinicName}. Salúdalo por su nombre, recuérdale su turno existente y pregúntale si desea confirmarlo (respondiendo 1) o cancelarlo/reprogramarlo (respondiendo 2).`;
         } else {
           patientContext = `[ESTADO DEL PACIENTE]: DNI ${dniFound} corresponde a "${foundPatient.name}" (paciente registrado sin turnos pendientes). Salúdalo por su nombre y proporciónale el enlace exclusivo para que elija día y horario: ${generatedBookingUrl}`;
         }
@@ -106,7 +106,6 @@ ${sysConfig.systemPrompt}
 
 DATOS DEL CONSULTORIO:
 - Nombre: ${clinic.clinicName}
-- Profesional a cargo: ${clinic.doctorName}
 - Especialidad: ${clinic.specialty}
 - Dirección: ${clinic.address}, ${clinic.city}
 - Horarios de atención: ${clinic.workingHours}
@@ -119,6 +118,7 @@ REGLAS DE ATENCIÓN:
 3. Si el usuario solicita un turno y aún no ha facilitado su DNI, pídele amablemente su número de DNI.
 4. Si abajo se incluye el [ESTADO DEL PACIENTE], responde exactamente con esa información confirmada de la clínica.
 5. Muestra los enlaces web como URL limpias (ejemplo: https://...). No uses corchetes markdown [texto](url).
+6. Saluda y da la bienvenida siempre en nombre de "${clinic.clinicName}". NUNCA menciones nombres de doctores o profesionales a cargo, ni en los saludos ni al informar o coordinar turnos; refiérete siempre al consultorio o clínica.
 `;
 
     // 4. Intento con Google Gemini AI
@@ -170,7 +170,7 @@ function getDeterministicResponse(
   // Caso 1: Se detectó un DNI y el paciente tiene un turno agendado
   if (dniFound && foundPatient && foundPatient.appointments && foundPatient.appointments[0]) {
     const appt = foundPatient.appointments[0];
-    return `¡Hola, ${foundPatient.name}! 👋\n\nVerificamos tu DNI ${dniFound} en el sistema y confirmamos que ya tienes un turno agendado:\n\n📅 *Fecha:* ${appt.date}\n⏰ *Hora:* ${appt.time} hs\n👨‍⚕️ *Profesional:* ${clinic.doctorName}\n📍 *Dirección:* ${clinic.address}, ${clinic.city}\n\n¿Deseas confirmar tu asistencia o necesitas cancelarlo / reprogramarlo?\n👉 Responde *1* para Confirmar\n👉 Responde *2* para Cancelar y elegir nueva fecha`;
+    return `¡Hola, ${foundPatient.name}! 👋\n\nVerificamos tu DNI ${dniFound} en el sistema y confirmamos que ya tienes un turno agendado:\n\n📅 *Fecha:* ${appt.date}\n⏰ *Hora:* ${appt.time} hs\n🏥 *Consultorio:* ${clinic.clinicName}\n📍 *Dirección:* ${clinic.address}, ${clinic.city}\n\n¿Deseas confirmar tu asistencia o necesitas cancelarlo / reprogramarlo?\n👉 Responde *1* para Confirmar\n👉 Responde *2* para Cancelar y elegir nueva fecha`;
   }
 
   // Caso 2: Se detectó un DNI, el paciente existe pero NO tiene turnos pendientes
@@ -186,7 +186,7 @@ function getDeterministicResponse(
   // Caso 4: Paciente conocido que escribió sin poner DNI pero ya tiene turno
   if (!dniFound && foundPatient && foundPatient.appointments && foundPatient.appointments[0]) {
     const appt = foundPatient.appointments[0];
-    return `¡Hola, ${foundPatient.name}! 👋 Qué gusto saludarte.\n\nTe recordamos que tienes un turno agendado para el ${appt.date} a las ${appt.time} hs con ${clinic.doctorName}.\n\n¿En qué podemos ayudarte hoy? (Responde *1* para confirmar o *2* para cancelar).`;
+    return `¡Hola, ${foundPatient.name}! 👋 Qué gusto saludarte.\n\nTe recordamos que tienes un turno agendado para el ${appt.date} a las ${appt.time} hs en ${clinic.clinicName}.\n\n¿En qué podemos ayudarte hoy? (Responde *1* para confirmar o *2* para cancelar).`;
   }
 
   // Caso 5: Mensaje general (saludo o consulta)

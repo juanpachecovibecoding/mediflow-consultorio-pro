@@ -223,7 +223,7 @@ async function startWhatsApp() {
               data: { status: 'CONFIRMED', reminderResponse: 'CONFIRMED' }
             });
             await sock.sendMessage(remoteJid, {
-              text: `✅ ¡Excelente ${patient.name}! Tu turno del ${appt.date} a las ${appt.time} hs con el ${clinic?.doctorName} ha sido RECONFIRMADO. Te esperamos en ${clinic?.address}.`
+              text: `✅ ¡Excelente ${patient.name}! Tu turno del ${appt.date} a las ${appt.time} hs en ${clinic?.clinicName || 'nuestro consultorio'} ha sido RECONFIRMADO. Te esperamos en ${clinic?.address}.`
             });
             botState.messagesSent += 1;
             continue;
@@ -458,7 +458,7 @@ app.post('/api/booking/confirm', bookingLimiter, async (req, res) => {
     if (activeSock && bookingToken.whatsappJid) {
       const serviceText = appointment.service?.name ? ` para ${appointment.service.name}` : '';
       activeSock.sendMessage(bookingToken.whatsappJid, {
-        text: `🎉 ¡Turno Confirmado con éxito!\n\nEstimado/a ${patient.name}, tu turno${serviceText} ha quedado reservado para el ${date} a las ${time} hs con el ${clinic?.doctorName}.\n📍 Dirección: ${clinic?.address}, ${clinic?.city}.\n\nTe enviaremos un recordatorio 24 horas antes. ¡Te esperamos!`
+        text: `🎉 ¡Turno Confirmado con éxito!\n\nEstimado/a ${patient.name}, tu turno${serviceText} ha quedado reservado para el ${date} a las ${time} hs en ${clinic?.clinicName || 'nuestro consultorio'}.\n📍 Dirección: ${clinic?.address}, ${clinic?.city}.\n\nTe enviaremos un recordatorio 24 horas antes. ¡Te esperamos!`
       }).catch(console.error);
     }
 

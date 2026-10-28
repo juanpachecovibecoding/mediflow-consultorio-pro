@@ -62,7 +62,7 @@ export async function checkAndProcessReminders(activeSock: any) {
           if (waCheck && waCheck.length > 0 && waCheck[0].exists) {
             const jid = waCheck[0].jid;
             const serviceName = appt.service?.name ? ` para ${appt.service.name}` : '';
-            const msg = `Hola ${appt.patient.name}! 👋 Te recordamos que mañana ${appt.date} tienes un turno a las ${appt.time} hs${serviceName} con el ${clinic.doctorName} en ${clinic.clinicName}.\n\nPor favor confirma tu asistencia respondiendo a este mensaje:\n1️⃣ para CONFIRMAR tu turno.\n2️⃣ para CANCELAR o reprogramar.\n\n¡Muchas gracias!`;
+            const msg = `Hola ${appt.patient.name}! 👋 Te recordamos que mañana ${appt.date} tienes un turno a las ${appt.time} hs${serviceName} en ${clinic.clinicName}.\n\nPor favor confirma tu asistencia respondiendo a este mensaje:\n1️⃣ para CONFIRMAR tu turno.\n2️⃣ para CANCELAR o reprogramar.\n\n¡Muchas gracias!`;
 
             await activeSock.sendMessage(jid, { text: msg });
 
