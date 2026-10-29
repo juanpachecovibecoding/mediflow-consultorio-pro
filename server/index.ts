@@ -185,14 +185,21 @@ async function startWhatsApp() {
       if (!textMessage) continue;
 
       // 1. Detección interactiva de respuestas a recordatorios y confirmación/cancelación de turnos
-      const trimmed = textMessage.trim().toLowerCase();
-      const isConfirming = trimmed === '1' || trimmed.startsWith('1 ') || trimmed === '1️⃣' || 
+      // Normalizar: minúsculas, sin tildes, sin asteriscos/puntuación/emojis keycap (ej: "*1*", "1.", "1️⃣", "Sí")
+      const trimmed = textMessage
+        .toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[\u200d\ufe0f\u20e3*_~.,!¡¿?"'()\-]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      const isConfirming = trimmed === '1' || trimmed.startsWith('1 ') ||
                            trimmed.includes('si asisto') || trimmed.includes('confirmo') || 
-                           trimmed.includes('confirmar') || trimmed === 'si';
-      const isCancelling = trimmed === '2' || trimmed.startsWith('2 ') || trimmed === '2️⃣' || 
+                           trimmed.includes('confirmar') || trimmed.includes('confirmado') || trimmed === 'si';
+      const isCancelling = trimmed === '2' || trimmed.startsWith('2 ') ||
                            trimmed.includes('no puedo') || trimmed.includes('reagendar') || 
+                           trimmed.includes('reprogramar') ||
                            trimmed.includes('cancelo') || trimmed.includes('cancelar') || 
-                           trimmed.includes('cancela') || trimmed.includes('cancelá');
+                           trimmed.includes('cancela');
 
       if (isConfirming || isCancelling) {
         const phoneDigits = remoteJid.replace('@s.whatsapp.net', '').replace(/\D/g, '');

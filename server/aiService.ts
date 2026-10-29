@@ -82,7 +82,7 @@ export async function processPatientMessage(
       } else {
         const nextAppt = foundPatient.appointments[0];
         if (nextAppt) {
-          patientContext = `[ESTADO DEL PACIENTE]: DNI ${dniFound} corresponde a "${foundPatient.name}". YA TIENE UN TURNO AGENDADO para el día ${nextAppt.date} a las ${nextAppt.time} hs en ${clinic.clinicName}. Salúdalo por su nombre, recuérdale su turno existente y pregúntale si desea confirmarlo (respondiendo 1) o cancelarlo/reprogramarlo (respondiendo 2).`;
+          patientContext = `[ESTADO DEL PACIENTE]: DNI ${dniFound} corresponde a "${foundPatient.name}". YA TIENE UN TURNO AGENDADO para el día ${nextAppt.date} a las ${nextAppt.time} hs en ${clinic.clinicName}. Salúdalo por su nombre, recuérdale su turno existente y pregúntale con texto simple si desea confirmarlo o cancelarlo (que responda "confirmar" o "cancelar"). NO uses números ni opciones numeradas.`;
         } else {
           patientContext = `[ESTADO DEL PACIENTE]: DNI ${dniFound} corresponde a "${foundPatient.name}" (paciente registrado sin turnos pendientes). Salúdalo por su nombre y proporciónale el enlace exclusivo para que elija día y horario: ${generatedBookingUrl}`;
         }
@@ -179,7 +179,7 @@ function getDeterministicResponse(
   // Caso 1: Se detectó un DNI y el paciente tiene un turno agendado
   if (dniFound && foundPatient && foundPatient.appointments && foundPatient.appointments[0]) {
     const appt = foundPatient.appointments[0];
-    return `¡Hola, ${foundPatient.name}! 👋\n\nVerificamos tu DNI ${dniFound} en el sistema y confirmamos que ya tienes un turno agendado:\n\n📅 *Fecha:* ${appt.date}\n⏰ *Hora:* ${appt.time} hs\n🏥 *Consultorio:* ${clinic.clinicName}\n📍 *Dirección:* ${clinic.address}, ${clinic.city}\n\n¿Deseas confirmar tu asistencia o necesitas cancelarlo / reprogramarlo?\n👉 Responde *1* para Confirmar\n👉 Responde *2* para Cancelar y elegir nueva fecha`;
+    return `¡Hola, ${foundPatient.name}! 👋\n\nVerificamos tu DNI ${dniFound} en el sistema y confirmamos que ya tienes un turno agendado:\n\n📅 *Fecha:* ${appt.date}\n⏰ *Hora:* ${appt.time} hs\n🏥 *Consultorio:* ${clinic.clinicName}\n📍 *Dirección:* ${clinic.address}, ${clinic.city}\n\n¿Deseas confirmar tu asistencia o necesitas cancelarlo? Respóndeme *confirmar* o *cancelar*.`;
   }
 
   // Caso 2: Se detectó un DNI, el paciente existe pero NO tiene turnos pendientes
@@ -195,7 +195,7 @@ function getDeterministicResponse(
   // Caso 4: Paciente conocido que escribió sin poner DNI pero ya tiene turno
   if (!dniFound && foundPatient && foundPatient.appointments && foundPatient.appointments[0]) {
     const appt = foundPatient.appointments[0];
-    return `¡Hola, ${foundPatient.name}! 👋 Qué gusto saludarte.\n\nTe recordamos que tienes un turno agendado para el ${appt.date} a las ${appt.time} hs en ${clinic.clinicName}.\n\n¿En qué podemos ayudarte hoy? (Responde *1* para confirmar o *2* para cancelar).`;
+    return `¡Hola, ${foundPatient.name}! 👋 Qué gusto saludarte.\n\nTe recordamos que tienes un turno agendado para el ${appt.date} a las ${appt.time} hs en ${clinic.clinicName}.\n\n¿En qué podemos ayudarte hoy? (Respóndeme *confirmar* o *cancelar*).`;
   }
 
   // Caso 5: Mensaje general (saludo o consulta)
