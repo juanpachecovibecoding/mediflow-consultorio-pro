@@ -20,6 +20,7 @@ model ClinicConfig {
   workingHours   String   @default("Lunes a Viernes de 09:00 a 19:00 hs")
   logoUrl        String?
   insurances     String   @default("OSDE, Swiss Medical, Galeno, Particular")
+  customDomain   String?  // Dominio personalizado para enlaces de reserva (ej: https://mediflow.devtech.com.ar)
   
   // Configuración de Recordatorios Inteligentes Antispam
   remindersActive    Boolean @default(true)

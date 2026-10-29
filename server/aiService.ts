@@ -66,7 +66,16 @@ export async function processPatientMessage(
         }
       });
 
-      generatedBookingUrl = `${appUrl}/reservar?token=${token}`;
+      // Determinar base URL efectiva (priorizando dominio personalizado de la clínica si existe)
+      let effectiveBase = (clinic.customDomain && clinic.customDomain.trim())
+        ? clinic.customDomain.trim()
+        : appUrl;
+      effectiveBase = effectiveBase.replace(/\/+$/, '');
+      if (!/^https?:\/\//i.test(effectiveBase)) {
+        effectiveBase = `https://${effectiveBase}`;
+      }
+
+      generatedBookingUrl = `${effectiveBase}/reservar?token=${token}`;
 
       if (!foundPatient) {
         patientContext = `[ESTADO DEL PACIENTE]: DNI ${dniFound} es un PACIENTE NUEVO (no registrado). Dale una cordial bienvenida, infórmale que le dejas el siguiente enlace exclusivo válido por 30 minutos para registrarse y seleccionar el día y horario que prefiera: ${generatedBookingUrl}`;

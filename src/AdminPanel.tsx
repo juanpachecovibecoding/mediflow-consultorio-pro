@@ -38,7 +38,8 @@ import {
   User,
   RefreshCw,
   PowerOff,
-  MessageCircle
+  MessageCircle,
+  Globe
 } from 'lucide-react';
 import { updateFavicon } from './utils/favicon';
 
@@ -2293,6 +2294,26 @@ export default function AdminPanel() {
                         </p>
                       </div>
                     </div>
+                  </div>
+
+                  {/* DOMINIO PERSONALIZADO / ENLACE DE RESERVAS (URL) */}
+                  <div className="sm:col-span-2 p-4 bg-indigo-50/40 border border-indigo-100 rounded-2xl">
+                    <label className="block text-xs font-bold text-slate-800 uppercase mb-1.5 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5 text-indigo-700">
+                        <Globe className="w-4 h-4 text-indigo-600" /> Dominio Personalizado / Enlace de Reservas (URL)
+                      </span>
+                      <span className="text-[10px] text-indigo-600 font-semibold lowercase font-mono">ej: https://mediflow.devtech.com.ar</span>
+                    </label>
+                    <input 
+                      type="url"
+                      value={clinic.customDomain || ''}
+                      onChange={e => setClinic({ ...clinic, customDomain: e.target.value })}
+                      placeholder="https://mediflow.devtech.com.ar"
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-mono outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <p className="text-[11px] text-slate-500 mt-1.5 leading-relaxed">
+                      Al configurar tu dominio aquí, la IA y los mensajes automáticos de WhatsApp entregarán este enlace directo al paciente (ejemplo: <strong className="text-indigo-600">{clinic.customDomain ? `${clinic.customDomain.replace(/\/+$/, '')}/reservar?token=...` : 'https://mediflow.devtech.com.ar/reservar?token=...'}</strong>) en lugar de la URL por defecto de Render.
+                    </p>
                   </div>
 
                   <div>

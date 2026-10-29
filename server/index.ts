@@ -245,7 +245,15 @@ async function startWhatsApp() {
                 expiresAt
               }
             });
-            const newLink = `${APP_URL}/reservar?token=${token}`;
+            // Determinar base URL efectiva (priorizando customDomain de la clínica)
+            let effectiveBase = (clinic?.customDomain && clinic.customDomain.trim())
+              ? clinic.customDomain.trim()
+              : APP_URL;
+            effectiveBase = effectiveBase.replace(/\/+$/, '');
+            if (!/^https?:\/\//i.test(effectiveBase)) {
+              effectiveBase = `https://${effectiveBase}`;
+            }
+            const newLink = `${effectiveBase}/reservar?token=${token}`;
 
             await sock.sendMessage(remoteJid, {
               text: `Comprendido ${patient.name}. Hemos cancelado tu turno del ${appt.date} a las ${appt.time} hs y liberado el horario en la agenda médica.\n\nSi deseas elegir un nuevo día y horario disponible, puedes hacerlo desde este enlace (válido por 30 minutos):\n${newLink}`
@@ -1107,11 +1115,21 @@ async function seedInitialUsers() {
   }
 }
 
+async function ensureDbColumns() {
+  try {
+    await prisma.$executeRawUnsafe(`ALTER TABLE "ClinicConfig" ADD COLUMN IF NOT EXISTS "customDomain" TEXT;`);
+  } catch (e) {
+    // Si la tabla aún no existe o el motor no soporta executeRawUnsafe, continuar
+  }
+}
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`===================================================`);
   console.log(`🏥 Consultorio-Pro | Sistema Médico & WhatsApp IA`);
   console.log(`🚀 Servidor en ejecución: ${APP_URL}`);
   console.log(`===================================================`);
+  // Garantizar compatibilidad de columnas en base de datos
+  ensureDbColumns().catch(console.error);
   // Sembrar usuarios iniciales si no existen
   seedInitialUsers().catch(console.error);
   seedInitialServices().catch(console.error);
