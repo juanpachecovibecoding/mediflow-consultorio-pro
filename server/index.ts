@@ -204,7 +204,8 @@ async function startWhatsApp() {
       if (isConfirming || isCancelling) {
         const phoneDigits = remoteJid.replace('@s.whatsapp.net', '').replace(/\D/g, '');
         // Buscar paciente por teléfono o JID
-        const patient = await prisma.patient.findFirst({
+        // Puede haber varios pacientes asociados al mismo teléfono/JID: elegir el que tenga turno activo
+        const candidates = await prisma.patient.findMany({
           where: {
             OR: [
               { phone: { contains: phoneDigits } },
@@ -219,6 +220,7 @@ async function startWhatsApp() {
             }
           }
         });
+        const patient = candidates.find(p => p.appointments.length > 0) || candidates[0] || null;
 
         if (patient && patient.appointments[0]) {
           const appt = patient.appointments[0];

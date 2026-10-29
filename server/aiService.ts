@@ -47,6 +47,11 @@ export async function processPatientMessage(
 
       // Si existe y cambió de teléfono o no tenía whatsappJid, lo actualizamos
       if (foundPatient && foundPatient.whatsappJid !== whatsappJid) {
+        // Este chat pasa a pertenecer al DNI recién verificado (evita que otro paciente con el mismo JID lo tape)
+        await prisma.patient.updateMany({
+          where: { whatsappJid, id: { not: foundPatient.id } },
+          data: { whatsappJid: null }
+        }).catch(() => {});
         await prisma.patient.update({
           where: { id: foundPatient.id },
           data: { whatsappJid }
@@ -89,7 +94,7 @@ export async function processPatientMessage(
       }
     } else {
       // Si no envió DNI, verificar si ya conocemos a este paciente por su JID de WhatsApp
-      foundPatient = await prisma.patient.findFirst({
+      foundPatient = await prisma.patient.findMany({
         where: { whatsappJid },
         include: {
           appointments: {
@@ -98,7 +103,7 @@ export async function processPatientMessage(
             take: 1
           }
         }
-      });
+      }).then(list => list.find(p => p.appointments.length > 0) || list[0] || null);
 
       if (foundPatient) {
         const nextAppt = foundPatient.appointments[0];
